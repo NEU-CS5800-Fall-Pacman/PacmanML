@@ -14,10 +14,8 @@ from Maze import Maze
 from MazeObject import MazeObject
 
 # Global configuration
-maze_size = 40
-frame_per_second = 2
-
-maze = np.random.choice([MazeObject.EMPTY.value, MazeObject.WALL.value], size=(maze_size, maze_size), p=[0.8, 0.2])
+maze_size = 36
+frame_per_second = 30
 
 
 def main(screen):
@@ -36,7 +34,7 @@ def main(screen):
     screen.nodelay(True)  # Turn off keystroke waiting
     curses.use_default_colors()  # Use terminal color
 
-    m = Maze(maze_size, maze)
+    m = Maze(maze_size, wall_coverage=0.2, filled_reward=True)
 
     # Main UI loop
     while True:

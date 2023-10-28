@@ -15,7 +15,7 @@ from Action import Action
 
 
 class Maze:
-    def __init__(self, size, data):
+    def __init__(self, size, data=None, wall_coverage=None, filled_reward=False):
         self._sprite = {MazeObject.WALL: ("█", "█"), MazeObject.AGENT: ("⬤", " "), MazeObject.EMPTY: (" ", " "),
                         MazeObject.ENEMIES: ("⬤", " "), MazeObject.REWARD: (" ", "·")}
         self._color = {MazeObject.WALL: curses.color_pair(2), MazeObject.AGENT: curses.color_pair(3),
@@ -24,21 +24,46 @@ class Maze:
         self._move = {Action.UP: (-1, 0), Action.DOWN: (1, 0), Action.LEFT: (0, -1), Action.RIGHT: (0, 1)}
         self._size = size
 
-        self._box = curses.newwin(self._size + 2, (self._size + 1) * 2, 0, 0)
+        self._box = curses.newwin(self._size + 2, (self._size + 1) * 2, 4, 0)
         self._box.attrset(curses.color_pair(2))
         self._box.box()
-        self._data = data
         self._agent = None
+
+        # Score box
+        self._score_box = curses.newwin(self._size + 2, (self._size + 1) * 2, 0, 0)
+        self._score = 0
+        self._iteration = 0
+
+        for line in range(4):
+            self._score_box.addstr(line, 0, " " * (self._size + 1) * 2, self._color[MazeObject.REWARD])
+
+        self._score_box.addstr(1, 0, " ITERATIONS", curses.A_BOLD | self._color[MazeObject.REWARD])
+        self._score_box.addstr(1, (self._size + 1) * 2 - 14, "🍒 HIGH SCORE", curses.A_BOLD | self._color[MazeObject.REWARD])
+        self._update_score()
+        self._update_iteration()
+
+        # Initialize data
+        self._data = data
+        if self._data is None:
+            if wall_coverage < 0 or wall_coverage >= 1:
+                raise Exception("Coverage should be between 0.0 and 1.0")
+
+            non_wall_obj = MazeObject.EMPTY.value
+            if filled_reward:
+                non_wall_obj = MazeObject.REWARD.value
+
+            self._data = np.random.choice([MazeObject.WALL.value, non_wall_obj], size=(size, size),
+                                          p=[wall_coverage, 1.0 - wall_coverage])
 
         # Initialize agent position
         while True:
             x = np.random.randint(0, self._size)
             y = np.random.randint(0, self._size)
 
-            if data[y][x] == MazeObject.WALL.value:
+            if self._data[y][x] == MazeObject.WALL.value:
                 continue
 
-            data[y][x] = MazeObject.AGENT.value
+            self._data[y][x] = MazeObject.AGENT.value
             self._agent = (y, x)
             break
 
@@ -51,7 +76,14 @@ class Maze:
                 self._box.addstr(j + 1, 2 * i + 1, char[0], self._color[obj])
                 self._box.addstr(j + 1, 2 * i + 2, char[1], self._color[obj])
 
+    def _update_score(self):
+        self._score_box.addstr(2, (self._size + 1) * 2 - 1 - len(f'{self._score:08}'), f'{self._score:08}', self._color[MazeObject.REWARD])
+
+    def _update_iteration(self):
+        self._score_box.addstr(2, 0, " " + f'{self._iteration:06}', self._color[MazeObject.REWARD])
+
     def refresh(self):
+        self._score_box.refresh()
         self._box.refresh()
 
     def get_agent_valid_move(self):
@@ -88,6 +120,13 @@ class Maze:
 
         # Set new cell to agent and change tracker
         self._agent = (self._agent[0] + self._move[direction][0], self._agent[1] + self._move[direction][1])
+
+        # Score
+        if self._data[self._agent[0]][self._agent[1]] == MazeObject.REWARD.value:
+            self._score = self._score + 1
+            self._update_score()
+
+        # Data update
         self._data[self._agent[0]][self._agent[1]] = MazeObject.AGENT.value
         char = self._sprite[MazeObject.AGENT]
         self._box.addstr(self._agent[0] + 1, 2 * self._agent[1] + 1, char[0], self._color[MazeObject.AGENT])
