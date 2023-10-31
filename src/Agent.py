@@ -24,5 +24,8 @@ class Agent:
     def get_x(self):
         return self._position[1]
 
+    def get_position(self):
+        return self._position
+
     def set_position(self, y, x):
         self._position = (y, x)

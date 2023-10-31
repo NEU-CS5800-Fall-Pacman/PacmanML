@@ -7,7 +7,6 @@
 ## License: GPL
 ##################################################
 
-import curses
 import numpy as np
 
 from MazeObject import MazeObject
@@ -23,13 +22,18 @@ class Maze:
         self._static_color = {MazeObject.WALL: Color.BLUE,
                               MazeObject.EMPTY: Color.WHITE,
                               MazeObject.REWARD: Color.WHITE}
-        self._move = {Action.UP: (-1, 0), Action.DOWN: (1, 0), Action.LEFT: (0, -1), Action.RIGHT: (0, 1)}
+        self._move = {Action.STAY: (0, 0), Action.UP: (-1, 0), Action.DOWN: (1, 0),
+                      Action.LEFT: (0, -1), Action.RIGHT: (0, 1)}
         self._size = size
+        self._wall_coverage = wall_coverage
+        self._filled_reward = filled_reward
 
         self._box = curses.newwin(self._size + 2, (self._size + 1) * 2, 4, 0)
-        self._box.attrset(curses.color_pair(2))
+        self._box.attrset(Color.BLUE)
         self._box.box()
         self._agents = []
+        self._red_zone = []
+        self._green_zone = []
 
         # Score box
         self._score_box = curses.newwin(self._size + 2, (self._size + 1) * 2, 0, 0)
@@ -46,16 +50,22 @@ class Maze:
 
         # Initialize data
         self._data = data
+        self._initial_data = np.copy(data)
+
+        self._init_draw()
+
+    def _init_draw(self):
         if self._data is None:
-            if wall_coverage < 0 or wall_coverage >= 1:
+            if self._wall_coverage < 0 or self._wall_coverage >= 1:
                 raise Exception("Coverage should be between 0.0 and 1.0")
 
             non_wall_obj = MazeObject.EMPTY.value
-            if filled_reward:
+            if self._filled_reward:
                 non_wall_obj = MazeObject.REWARD.value
 
-            self._data = np.random.choice([MazeObject.WALL.value, non_wall_obj], size=(size, size),
-                                          p=[wall_coverage, 1.0 - wall_coverage])
+            self._data = np.random.choice([MazeObject.WALL.value, non_wall_obj], size=(self._size, self._size),
+                                          p=[self._wall_coverage, 1.0 - self._wall_coverage])
+            self._initial_data = np.copy(self._data)
 
         # Initialize object drawing
         for j in range(0, self._size):
@@ -79,13 +89,21 @@ class Maze:
             x = np.random.randint(0, self._size)
             y = np.random.randint(0, self._size)
 
-            if self._data[y][x] == MazeObject.WALL.value or self._data[y][x] == MazeObject.AGENT:
+            if self._data[y][x] == MazeObject.WALL.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
                 continue
 
             agent = Agent(color, is_hostile, (y, x))
             break
 
         self._agents.append(agent)
+
+        if is_hostile:
+            self._red_zone.append(agent.get_position())
+            self._green_zone.append(0)
+        else:
+            self._green_zone.append(agent.get_position())
+            self._red_zone.append(0)
+
         self._box.addstr(y + 1, 2 * x + 1, self._sprite[MazeObject.AGENT][0], color)
         self._box.addstr(y + 1, 2 * x + 2, self._sprite[MazeObject.AGENT][1], color)
 
@@ -96,7 +114,7 @@ class Maze:
         self._box.refresh()
 
     def get_agent_valid_move(self, index):
-        moves = []
+        moves = [Action.STAY.value]
 
         agent = self._agents[index]
         if ((agent.get_y() - 1) >= 0 and
@@ -113,6 +131,26 @@ class Maze:
             moves.append(Action.RIGHT.value)
 
         return moves
+
+    def reset(self):
+        # Update scoreboard
+        self._iteration = self._iteration + 1
+        self._update_iteration()
+        self._score = 0
+        self._update_score()
+
+        # Re-draw initial state
+        self._data = np.copy(self._initial_data)
+        self._init_draw()
+
+        # Re-init agents
+        temp_agents = np.copy(self._agents)
+        self._agents = []
+        self._red_zone = []
+        self._green_zone = []
+
+        for ag in temp_agents:
+            self.add_agent(ag.get_color(), ag.is_hostile())
 
     def move_agent(self, index, direction=None):
         valid_moves = self.get_agent_valid_move(index)
@@ -134,14 +172,23 @@ class Maze:
         # Set new cell to agent and change tracker
         agent.set_position(agent.get_y() + self._move[direction][0], agent.get_x() + self._move[direction][1])
 
-        # Score
-        if not agent.is_hostile() and self._data[agent.get_y()][agent.get_x()] == MazeObject.REWARD.value:
-            self._score = self._score + 1
-            self._update_score()
-
         # Data update
         if not agent.is_hostile():
+            if self._data[agent.get_y()][agent.get_x()] == MazeObject.REWARD.value:
+                self._score = self._score + 1
+                self._update_score()
+            elif agent.get_position() in self._red_zone:
+                self.reset()
+                return
+
             self._data[agent.get_y()][agent.get_x()] = MazeObject.EMPTY.value
+            self._green_zone[index] = agent.get_position()
+        else:
+            if agent.get_position() in self._green_zone:
+                self.reset()
+                return
+
+            self._red_zone[index] = agent.get_position()
 
         char = self._sprite[MazeObject.AGENT]
         self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, char[0], agent.get_color())
