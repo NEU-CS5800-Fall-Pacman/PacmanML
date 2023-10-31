@@ -15,6 +15,7 @@ from Action import Action
 from Color import *
 from Agent import Agent
 
+
 class Maze:
     def __init__(self, size, data=None, wall_coverage=None, filled_reward=False):
         self._sprite = {MazeObject.WALL: ("█", "█"), MazeObject.EMPTY: (" ", " "),
@@ -81,7 +82,6 @@ class Maze:
             if self._data[y][x] == MazeObject.WALL.value or self._data[y][x] == MazeObject.AGENT:
                 continue
 
-            self._data[y][x] = MazeObject.AGENT.value
             agent = Agent(color, is_hostile, (y, x))
             break
 
@@ -126,22 +126,23 @@ class Maze:
         # Set agent into an obj
         agent = self._agents[index]
 
-        # Set old cell to empty
-        self._data[agent.get_y()][agent.get_x()] = MazeObject.EMPTY.value
-        char = self._sprite[MazeObject.EMPTY]
-        self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, char[0], agent.get_color())
-        self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, char[1], agent.get_color())
+        # Set old cell to empty/reward
+        char = self._sprite[MazeObject(self._data[agent.get_y()][agent.get_x()])]
+        self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, char[0], Color.WHITE)
+        self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, char[1], Color.WHITE)
 
         # Set new cell to agent and change tracker
         agent.set_position(agent.get_y() + self._move[direction][0], agent.get_x() + self._move[direction][1])
 
         # Score
-        if self._data[agent.get_y()][agent.get_x()] == MazeObject.REWARD.value:
+        if not agent.is_hostile() and self._data[agent.get_y()][agent.get_x()] == MazeObject.REWARD.value:
             self._score = self._score + 1
             self._update_score()
 
         # Data update
-        self._data[agent.get_y()][agent.get_x()] = MazeObject.AGENT.value
+        if not agent.is_hostile():
+            self._data[agent.get_y()][agent.get_x()] = MazeObject.EMPTY.value
+
         char = self._sprite[MazeObject.AGENT]
         self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, char[0], agent.get_color())
         self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, char[1], agent.get_color())
