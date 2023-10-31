@@ -9,4 +9,6 @@
 Please run `pip install -r requirements.txt` or `pip3 install -r requirements.txt` to install all dependencies
 
 For manual installation, here is the list of dependencies:
-- curses
+- curses (for *NIX based OS)
+- windows-curses (for Windows)
+- numpy
