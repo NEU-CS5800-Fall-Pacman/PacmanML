@@ -8,6 +8,7 @@
 
 import curses
 from time import sleep
+from Color import *
 import numpy as np
 
 from Maze import Maze
@@ -19,12 +20,8 @@ frame_per_second = 30
 
 
 def main(screen):
-    # Setting color
     curses.start_color()
-    curses.init_pair(1, curses.COLOR_WHITE, curses.COLOR_BLACK)
-    curses.init_pair(2, curses.COLOR_BLUE, curses.COLOR_BLACK)
-    curses.init_pair(3, curses.COLOR_YELLOW, curses.COLOR_BLACK)
-    curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
+    Color.initialize()
 
     # Term options
     screen.clear()
@@ -34,16 +31,18 @@ def main(screen):
     screen.nodelay(True)  # Turn off keystroke waiting
     curses.use_default_colors()  # Use terminal color
 
-    m = Maze(maze_size, wall_coverage=0.2, filled_reward=True)
+    maze = Maze(maze_size, wall_coverage=0.2, filled_reward=True)
+
+    maze.add_agent(Color.YELLOW, False)
 
     # Main UI loop
     while True:
         # Move agent
-        m.move_agent(direction=None)
+        maze.move_agent(0, direction=None)
 
         # Re-draw
         screen.refresh()
-        m.refresh()
+        maze.refresh()
         screen.getch()
 
         # Wait for next frame

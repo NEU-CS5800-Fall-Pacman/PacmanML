@@ -12,6 +12,5 @@ from enum import Enum
 class MazeObject(Enum):
     EMPTY = 0
     WALL = 1
-    AGENT = 2
-    REWARD = 3
-    ENEMIES = 4
+    REWARD = 2
+    AGENT = 3
