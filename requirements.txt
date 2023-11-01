@@ -1,2 +1,2 @@
-curses
+windows-curses; sys_platform == "Windows"
 numpy
