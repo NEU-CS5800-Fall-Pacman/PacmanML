@@ -18,7 +18,7 @@ from Agent import Agent
 class Maze:
     def __init__(self, size, data=None, wall_coverage=None, filled_reward=False):
         self._sprite = {MazeObject.WALL: ("█", "█"), MazeObject.EMPTY: (" ", " "),
-                        MazeObject.REWARD: (" ", "·"), MazeObject.AGENT: ("⬤", " ")}
+                        MazeObject.REWARD: ("・", ""), MazeObject.AGENT: ("🌑", "")}
         self._static_color = {MazeObject.WALL: Color.BLUE,
                               MazeObject.EMPTY: Color.WHITE,
                               MazeObject.REWARD: Color.WHITE}
