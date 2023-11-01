@@ -24,22 +24,26 @@ class Maze:
                               MazeObject.REWARD: Color.WHITE}
         self._move = {Action.STAY: (0, 0), Action.UP: (-1, 0), Action.DOWN: (1, 0),
                       Action.LEFT: (0, -1), Action.RIGHT: (0, 1)}
-        self._size = size
-        self._wall_coverage = wall_coverage
-        self._filled_reward = filled_reward
+        self._size = size  # Maze size
+        self._wall_coverage = wall_coverage  # Percentage of the maze wall should be covered
+        self._filled_reward = filled_reward  # If reward should be filled within non-wall space
 
+        # Main game box
         self._box = curses.newwin(self._size + 2, (self._size + 1) * 2, 4, 0)
         self._box.attrset(Color.BLUE)
         self._box.box()
-        self._agents = []
-        self._red_zone = []
-        self._green_zone = []
+
+        # Agent properties
+        self._agents = []  # List of agents
+        self._red_zone = []  # Coordinates of hostile agents
+        self._green_zone = []  # Coordinates of non-hostile agents
 
         # Score box
         self._score_box = curses.newwin(self._size + 2, (self._size + 1) * 2, 0, 0)
         self._score = 0
         self._iteration = 0
 
+        # Render score box
         for line in range(4):
             self._score_box.addstr(line, 0, " " * (self._size + 1) * 2, self._static_color[MazeObject.REWARD])
 
@@ -48,7 +52,7 @@ class Maze:
         self._update_score()
         self._update_iteration()
 
-        # Initialize data
+        # Initialize maze data
         self._data = data
         self._initial_data = np.copy(data)
 
@@ -83,7 +87,46 @@ class Maze:
     def _update_iteration(self):
         self._score_box.addstr(2, 0, " " + f'{self._iteration:06}', Color.WHITE)
 
+    def add_reward(self, y=None, x=None):
+        """
+        Add reward to the maze. If x and y not given, spawn random on a valid spot
+
+        :param y: y coordinate of the reward (Optional)
+        :param x: x coordinate of the reward (Optional)
+        :return: tuple of (y, x)
+        """
+
+        if x is None or y is None:
+            while True:  # Random x and y
+                rand_x = np.random.randint(0, self._size)
+                rand_y = np.random.randint(0, self._size)
+
+                if (self._data[rand_y][rand_x] == MazeObject.WALL.value or
+                        (rand_y, rand_x) in self._red_zone or (rand_y, rand_x) in self._green_zone):
+                    continue
+
+                x = rand_x
+                y = rand_y
+                break
+        elif self._data[y][x] == MazeObject.WALL.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
+            return -1  # Not a valid spawn point
+
+        # Store and render
+        self._data[y][x] = MazeObject.REWARD.value
+        self._box.addstr(y + 1, 2 * x + 1, self._sprite[MazeObject.REWARD][0], Color.WHITE)
+        self._box.addstr(y + 1, 2 * x + 2, self._sprite[MazeObject.REWARD][1], Color.WHITE)
+
+        return tuple([y, x])
+
     def add_agent(self, color, is_hostile):
+        """
+        Add new agent into the maze, given color of the agent, and if agent is hostile
+
+        :param color: color of the agent, use Color class
+        :param is_hostile: whether the agent consumes reward and catch non-hostile agents
+        :return: index of newly added agent
+        """
+
         agent = None
         while True:
             x = np.random.randint(0, self._size)
@@ -110,10 +153,21 @@ class Maze:
         return len(self._agents) - 1
 
     def refresh(self):
+        """
+        Refresh entire box, only call after each frame is drawn
+        """
+
         self._score_box.refresh()
         self._box.refresh()
 
     def get_agent_valid_move(self, index):
+        """
+        Return list of valid moves, given agent index
+
+        :param index: index of the agent
+        :return: list of valid Actions
+        """
+
         moves = [Action.STAY.value]
 
         agent = self._agents[index]
@@ -133,6 +187,10 @@ class Maze:
         return moves
 
     def reset(self):
+        """
+        Reset the maze to its original generation
+        """
+
         # Update scoreboard
         self._iteration = self._iteration + 1
         self._update_iteration()
@@ -153,6 +211,15 @@ class Maze:
             self.add_agent(ag.get_color(), ag.is_hostile())
 
     def move_agent(self, index, direction=None):
+        """
+        Move agent within the maze, given agent index and direction. If direction isn't given,
+        agent will randomly choose from the list of valid Actions
+
+        :param index: index of the agent
+        :param direction: Actions enum to let the system know where to move the agent (Optional)
+        :return: 0 for success, otherwise -1
+        """
+
         valid_moves = self.get_agent_valid_move(index)
 
         # Random if not given
