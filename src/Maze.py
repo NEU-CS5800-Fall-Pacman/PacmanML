@@ -279,7 +279,6 @@ class Maze:
 
         # Data update
         if not agent.is_hostile():
-            reward = 0
             if self._data[agent.get_y()][agent.get_x()] == MazeObject.REWARD.value:
                 self._score = self._score + 1
                 self._update_score()
