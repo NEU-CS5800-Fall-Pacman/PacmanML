@@ -13,12 +13,13 @@ from MazeObject import MazeObject
 from Action import Action
 from Color import *
 from Agent import Agent
+from Astar import *
 
 
 class Maze:
     def __init__(self, size, data=None, wall_coverage=None, filled_reward=False):
         self._sprite = {MazeObject.WALL: ("█", "█"), MazeObject.EMPTY: (" ", " "),
-                        MazeObject.REWARD: ("・", ""), MazeObject.AGENT: ("🌑", "")}
+                        MazeObject.REWARD: ("・", ""), MazeObject.AGENT: ("A", "")}
         self._static_color = {MazeObject.WALL: Color.BLUE,
                               MazeObject.EMPTY: Color.WHITE,
                               MazeObject.REWARD: Color.WHITE}
@@ -55,6 +56,7 @@ class Maze:
         # Initialize maze data
         self._data = data
         self._initial_data = np.copy(data)
+        self._initial_agents_pos = []
 
         self._init_draw()
 
@@ -134,11 +136,12 @@ class Maze:
 
             if self._data[y][x] == MazeObject.WALL.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
                 continue
-
-            agent = Agent(color, is_hostile, (y, x))
-            break
+            else:
+                agent = Agent(color, is_hostile, (y, x))
+                break
 
         self._agents.append(agent)
+        self._initial_agents_pos.append(agent.get_position())
 
         if is_hostile:
             self._red_zone.append(agent.get_position())
@@ -168,21 +171,21 @@ class Maze:
         :return: list of valid Actions
         """
 
-        moves = [Action.STAY.value]
+        moves = []
 
         agent = self._agents[index]
         if ((agent.get_y() - 1) >= 0 and
                 not (self._data[agent.get_y() - 1][agent.get_x()] == MazeObject.WALL.value)):
-            moves.append(Action.UP.value)
+            moves.append(Action.UP)
         if ((agent.get_y() + 1) < self._size and
                 not (self._data[agent.get_y() + 1][agent.get_x()] == MazeObject.WALL.value)):
-            moves.append(Action.DOWN.value)
+            moves.append(Action.DOWN)
         if ((agent.get_x() - 1) >= 0 and
                 not (self._data[agent.get_y()][agent.get_x() - 1] == MazeObject.WALL.value)):
-            moves.append(Action.LEFT.value)
+            moves.append(Action.LEFT)
         if ((agent.get_x() + 1) < self._size and
                 not (self._data[agent.get_y()][agent.get_x() + 1] == MazeObject.WALL.value)):
-            moves.append(Action.RIGHT.value)
+            moves.append(Action.RIGHT)
 
         return moves
 
@@ -203,12 +206,42 @@ class Maze:
 
         # Re-init agents
         temp_agents = np.copy(self._agents)
+        for index in range(len(temp_agents)):
+            y = self._initial_agents_pos[index][0]
+            x = self._initial_agents_pos[index][1]
+            temp_agents[index].set_position(y, x)
         self._agents = []
-        self._red_zone = []
-        self._green_zone = []
+        #self._red_zone = []
+        #self._green_zone = []
+        self._agents = temp_agents
+        # for ag in temp_agents:
+        #     self.add_agent(ag.get_color(), ag.is_hostile())
 
-        for ag in temp_agents:
-            self.add_agent(ag.get_color(), ag.is_hostile())
+    def get_agent_pos(self):
+        for agent in self._agents:
+            if not agent.is_hostile():
+                return agent.get_position()
+
+    def get_enemy_direction(self, enemy_pos, agent_pos):
+        a_star = AStar(self._size, enemy_pos, agent_pos)
+        path = a_star.find_path(self)
+        direction = Action.STAY
+        if path and len(path) > 1:
+            next_cell = path[1]
+            # Determine the direction to move
+            delta_y = next_cell[0] - enemy_pos[0]
+            delta_x = next_cell[1] - enemy_pos[1]
+
+            if delta_x == 0 and delta_y == -1:
+                direction = Action.UP
+            elif delta_x == 0 and delta_y == 1:
+                direction = Action.DOWN
+            elif delta_x == -1 and delta_y == 0:
+                direction = Action.LEFT
+            elif delta_x == 1 and delta_y == 0:
+                direction = Action.RIGHT
+
+        return direction
 
     def move_agent(self, index, direction=None):
         """
@@ -230,6 +263,11 @@ class Maze:
 
         # Set agent into an obj
         agent = self._agents[index]
+        prev_agent_position = agent.get_position()
+
+        # if the agent is an enemy
+        if agent.is_hostile():
+            direction = self.get_enemy_direction(agent.get_position(), self.get_agent_pos())
 
         # Set old cell to empty/reward
         char = self._sprite[MazeObject(self._data[agent.get_y()][agent.get_x()])]
@@ -241,6 +279,7 @@ class Maze:
 
         # Data update
         if not agent.is_hostile():
+            reward = 0
             if self._data[agent.get_y()][agent.get_x()] == MazeObject.REWARD.value:
                 self._score = self._score + 1
                 self._update_score()
@@ -262,4 +301,3 @@ class Maze:
         self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, char[1], agent.get_color())
 
         return 0  # Success
-
