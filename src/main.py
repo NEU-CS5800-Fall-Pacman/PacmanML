@@ -15,7 +15,7 @@ from Maze import Maze
 from MazeObject import MazeObject
 
 # Global configuration
-maze_size = 32
+maze_size = 18
 frame_per_second = 30
 
 
@@ -32,9 +32,11 @@ def main(screen):
     curses.use_default_colors()  # Use terminal color
 
     # Maze setup
-    maze = Maze(maze_size, wall_coverage=0.2, filled_reward=True)
-
-    maze.add_agent(Color.YELLOW, False)
+    maze = Maze(maze_size, wall_coverage=0.2, filled_reward=False)
+    
+    for _ in range(10):
+        maze.add_reward()
+    maze.add_agent(Color.YELLOW, True)
     maze.add_agent(Color.RED, True)
     maze.add_agent(Color.GREEN, True)
     maze.add_agent(Color.CYAN, True)
@@ -43,11 +45,11 @@ def main(screen):
     # Main UI loop
     while True:
         # Move agent
-        maze.move_agent(0, direction=None)
-        maze.move_agent(1, direction=None)
-        maze.move_agent(2, direction=None)
-        maze.move_agent(3, direction=None)
-        maze.move_agent(4, direction=None)
+        maze.move_agent(0)
+        maze.move_agent(1)
+        # maze.move_agent(2)
+        # maze.move_agent(3)
+        # maze.move_agent(4)
 
         # Re-draw
         screen.refresh()
