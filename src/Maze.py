@@ -8,19 +8,22 @@
 ##################################################
 
 import numpy as np
-
+import copy
+from collections import deque
+from time import sleep
 from MazeObject import MazeObject
 from Action import Action
 from Color import *
 from Agent import Agent
+from Astar import *
 
 
 class Maze:
     def __init__(self, size, data=None, wall_coverage=None, filled_reward=False):
         self._sprite = {MazeObject.WALL: ("█", "█"), MazeObject.EMPTY: (" ", " "),
-                        MazeObject.REWARD: ("・", ""), MazeObject.AGENT: ("🌑", "")}
+                        MazeObject.REWARD: ("・", ""), MazeObject.AGENT: ("●", " ")}
         self._static_color = {MazeObject.WALL: Color.BLUE,
-                              MazeObject.EMPTY: Color.WHITE,
+                              MazeObject.EMPTY: Color.MAGENTA,
                               MazeObject.REWARD: Color.WHITE}
         self._move = {Action.STAY: (0, 0), Action.UP: (-1, 0), Action.DOWN: (1, 0),
                       Action.LEFT: (0, -1), Action.RIGHT: (0, 1)}
@@ -54,11 +57,15 @@ class Maze:
 
         # Initialize maze data
         self._data = data
-        self._initial_data = np.copy(data)
+        self._initial_agents = []
 
+        self._init_objects()
+        self.hill_Climbing()
+        self._initial_data = np.copy(self._data)
+        self._initial_agents = copy.deepcopy(self._agents)
         self._init_draw()
 
-    def _init_draw(self):
+    def _init_objects(self):
         if self._data is None:
             if self._wall_coverage < 0 or self._wall_coverage >= 1:
                 raise Exception("Coverage should be between 0.0 and 1.0")
@@ -69,8 +76,14 @@ class Maze:
 
             self._data = np.random.choice([MazeObject.WALL.value, non_wall_obj], size=(self._size, self._size),
                                           p=[self._wall_coverage, 1.0 - self._wall_coverage])
-            self._initial_data = np.copy(self._data)
+        self._agents = []
+        self.add_agent(Color.YELLOW, False)
+        self.add_agent(Color.RED, True)
+        self.add_agent(Color.GREEN, True)
+        self.add_agent(Color.CYAN, True)
+        self.add_agent(Color.MAGENTA, True)
 
+    def _init_draw(self):
         # Initialize object drawing
         for j in range(0, self._size):
             for i in range(0, self._size):
@@ -79,6 +92,59 @@ class Maze:
 
                 self._box.addstr(j + 1, 2 * i + 1, char[0], self._static_color[obj])
                 self._box.addstr(j + 1, 2 * i + 2, char[1], self._static_color[obj])
+
+        for agent in self._initial_agents:
+            self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, self._sprite[MazeObject.AGENT][0], agent.get_color())
+            self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, self._sprite[MazeObject.AGENT][1], agent.get_color())
+
+    def bfs(self, agent):
+        start = agent.get_position()
+        queue = deque([start])
+        visited = [[False] * self._size for _ in range(self._size)]
+        visited[start[0]][start[1]] = True
+        num_reachable = 1
+        while len(queue) > 0:
+            current = queue.popleft()
+            valid_move = self.get_agent_valid_move(current[0], current[1])
+            for move in valid_move:
+                new_y = current[0] + self._move[move][0]
+                new_x = current[1] + self._move[move][1]
+                if not visited[new_y][new_x]:
+                    visited[new_y][new_x] = True
+                    queue.append((new_y, new_x))
+                    num_reachable += 1
+        return num_reachable
+
+    def energy(self):
+        return self.bfs(self._agents[0])
+
+    def hill_Climbing(self):
+        while True:
+            walls = []
+            for j in range(0, self._size):
+                for i in range(0, self._size):
+                    if self._data[j][i] == MazeObject.WALL.value:
+                        walls.append((j, i))
+            num_walls = len(walls)
+            num_cells = self._size * self._size - num_walls
+            current_energy = self.energy()
+            if current_energy == num_cells:
+                return
+            np.random.shuffle(walls)
+            for index in range(num_walls):
+                remove_wall = walls[index]
+                self._data[remove_wall[0]][remove_wall[1]] = MazeObject.EMPTY.value
+                new_energy = self.energy() - 1
+                if new_energy <= current_energy:
+                    self._data[remove_wall[0]][remove_wall[1]] = MazeObject.WALL.value
+                else:
+                    current_energy = new_energy + 1
+                    num_cells += 1
+
+                if current_energy == num_cells:
+                    return
+            # restart
+            self._init_objects()
 
     def _update_score(self):
         self._score_box.addstr(2, (self._size + 1) * 2 - 1 - len(f'{self._score:08}'), f'{self._score:08}',
@@ -129,14 +195,14 @@ class Maze:
 
         agent = None
         while True:
-            x = np.random.randint(0, self._size)
-            y = np.random.randint(0, self._size)
+            x = np.random.randint(0, self._size - 1)
+            y = np.random.randint(0, self._size - 1)
 
             if self._data[y][x] == MazeObject.WALL.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
                 continue
-
-            agent = Agent(color, is_hostile, (y, x))
-            break
+            else:
+                agent = Agent(color, is_hostile, (y, x))
+                break
 
         self._agents.append(agent)
 
@@ -146,9 +212,6 @@ class Maze:
         else:
             self._green_zone.append(agent.get_position())
             self._red_zone.append(0)
-
-        self._box.addstr(y + 1, 2 * x + 1, self._sprite[MazeObject.AGENT][0], color)
-        self._box.addstr(y + 1, 2 * x + 2, self._sprite[MazeObject.AGENT][1], color)
 
         return len(self._agents) - 1
 
@@ -160,7 +223,7 @@ class Maze:
         self._score_box.refresh()
         self._box.refresh()
 
-    def get_agent_valid_move(self, index):
+    def get_agent_valid_move(self, y, x):
         """
         Return list of valid moves, given agent index
 
@@ -168,21 +231,20 @@ class Maze:
         :return: list of valid Actions
         """
 
-        moves = [Action.STAY.value]
+        moves = []
 
-        agent = self._agents[index]
-        if ((agent.get_y() - 1) >= 0 and
-                not (self._data[agent.get_y() - 1][agent.get_x()] == MazeObject.WALL.value)):
-            moves.append(Action.UP.value)
-        if ((agent.get_y() + 1) < self._size and
-                not (self._data[agent.get_y() + 1][agent.get_x()] == MazeObject.WALL.value)):
-            moves.append(Action.DOWN.value)
-        if ((agent.get_x() - 1) >= 0 and
-                not (self._data[agent.get_y()][agent.get_x() - 1] == MazeObject.WALL.value)):
-            moves.append(Action.LEFT.value)
-        if ((agent.get_x() + 1) < self._size and
-                not (self._data[agent.get_y()][agent.get_x() + 1] == MazeObject.WALL.value)):
-            moves.append(Action.RIGHT.value)
+        if ((y - 1) >= 0 and
+                not (self._data[y - 1][x] == MazeObject.WALL.value)):
+            moves.append(Action.UP)
+        if ((y + 1) < self._size and
+                not (self._data[y + 1][x] == MazeObject.WALL.value)):
+            moves.append(Action.DOWN)
+        if ((x - 1) >= 0 and
+                not (self._data[y][x - 1] == MazeObject.WALL.value)):
+            moves.append(Action.LEFT)
+        if ((x + 1) < self._size and
+                not (self._data[y][x + 1] == MazeObject.WALL.value)):
+            moves.append(Action.RIGHT)
 
         return moves
 
@@ -199,16 +261,35 @@ class Maze:
 
         # Re-draw initial state
         self._data = np.copy(self._initial_data)
+        self._agents = []
+        self._agents = copy.deepcopy(self._initial_agents)
         self._init_draw()
 
-        # Re-init agents
-        temp_agents = np.copy(self._agents)
-        self._agents = []
-        self._red_zone = []
-        self._green_zone = []
+    def get_agent_pos(self):
+        for agent in self._agents:
+            if not agent.is_hostile():
+                return agent.get_position()
 
-        for ag in temp_agents:
-            self.add_agent(ag.get_color(), ag.is_hostile())
+    def get_enemy_direction(self, enemy_pos, agent_pos):
+        a_star = AStar(self._size, enemy_pos, agent_pos)
+        path = a_star.find_path(self)
+        direction = Action.STAY
+        if path and len(path) > 1:
+            next_cell = path[1]
+            # Determine the direction to move
+            delta_y = next_cell[0] - enemy_pos[0]
+            delta_x = next_cell[1] - enemy_pos[1]
+
+            if delta_x == 0 and delta_y == -1:
+                direction = Action.UP
+            elif delta_x == 0 and delta_y == 1:
+                direction = Action.DOWN
+            elif delta_x == -1 and delta_y == 0:
+                direction = Action.LEFT
+            elif delta_x == 1 and delta_y == 0:
+                direction = Action.RIGHT
+
+        return direction
 
     def move_agent(self, index, direction=None):
         """
@@ -220,7 +301,10 @@ class Maze:
         :return: 0 for success, otherwise -1
         """
 
-        valid_moves = self.get_agent_valid_move(index)
+        # Set agent into an obj
+        agent = self._agents[index]
+
+        valid_moves = self.get_agent_valid_move(agent.get_y(), agent.get_x())
 
         # Random if not given
         if direction is None:
@@ -228,8 +312,9 @@ class Maze:
         elif direction.value not in valid_moves:
             return -1  # Failure
 
-        # Set agent into an obj
-        agent = self._agents[index]
+        # if the agent is an enemy
+        if agent.is_hostile():
+            direction = self.get_enemy_direction(agent.get_position(), self.get_agent_pos())
 
         # Set old cell to empty/reward
         char = self._sprite[MazeObject(self._data[agent.get_y()][agent.get_x()])]
@@ -263,3 +348,6 @@ class Maze:
 
         return 0  # Success
 
+    def play(self):
+        for index in range(len(self._agents)):
+            self.move_agent(index, None)
