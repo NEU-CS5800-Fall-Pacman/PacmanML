@@ -16,6 +16,7 @@ from Action import Action
 from Color import *
 from Agent import Agent
 from Astar import *
+from AstarAgent import *
 
 
 class Maze:
@@ -76,8 +77,12 @@ class Maze:
             if self._filled_reward:
                 non_wall_obj = MazeObject.REWARD.value
 
+
             self._data = np.random.choice([MazeObject.WALL.value, non_wall_obj], size=(self._size, self._size),
                                           p=[self._wall_coverage, 1.0 - self._wall_coverage])
+
+            # Store reward positions in the _reward_positions list
+            self._reward_positions = np.argwhere(self._data == MazeObject.REWARD.value).tolist()
 
         self._agents = []
         self.add_agent(Color.YELLOW, False)
@@ -257,8 +262,11 @@ class Maze:
 
     def reset(self):
         """
-        Reset the maze to its original generation
+        Reset the maze to its original generation and re-add rewards to their original positions
         """
+
+        # Store the current reward positions
+        current_reward_positions = copy.deepcopy(self._reward_positions)
 
         # Update scoreboard
         self._iteration = self._iteration + 1
@@ -272,11 +280,37 @@ class Maze:
         self._agents = copy.deepcopy(self._initial_agents)
         self._init_draw()
 
+        # Re-add rewards to their original positions
+        for position in current_reward_positions:
+            self.add_reward(y=position[0], x=position[1])
+
     def get_agent_pos(self):
         for agent in self._agents:
             if not agent.is_hostile():
                 return agent.get_position()
 
+    
+    def get_reward_direction(self, enemy_pos, agent_pos):
+        a_star = AStarAgent(self._size, enemy_pos, agent_pos)
+        path = a_star.find_path(self)
+        direction = Action.STAY
+        if path and len(path) > 1:
+            next_cell = path[1]
+            # Determine the direction to move
+            delta_y = next_cell[0] - enemy_pos[0]
+            delta_x = next_cell[1] - enemy_pos[1]
+
+            if delta_x == 0 and delta_y == -1:
+                direction = Action.UP
+            elif delta_x == 0 and delta_y == 1:
+                direction = Action.DOWN
+            elif delta_x == -1 and delta_y == 0:
+                direction = Action.LEFT
+            elif delta_x == 1 and delta_y == 0:
+                direction = Action.RIGHT
+
+        return direction
+    
     def get_enemy_direction(self, enemy_pos, agent_pos):
         a_star = AStar(self._size, enemy_pos, agent_pos)
         path = a_star.find_path(self)
@@ -318,9 +352,10 @@ class Maze:
             # Use get_enemy_direction to move towards the next available reward
             if self._reward_positions:
                 reward_position = self._reward_positions[0]  # Choose the first reward position
+
             if agent.get_position() == reward_position:
                 self._reward_positions.remove(reward_position)
-            direction = self.get_enemy_direction((agent.get_y(), agent.get_x()), reward_position)
+            direction = self.get_reward_direction((agent.get_y(), agent.get_x()), reward_position)
             # direction = Action(np.random.choice(valid_moves))
         elif direction.value not in valid_moves:
             return -1  # Failure

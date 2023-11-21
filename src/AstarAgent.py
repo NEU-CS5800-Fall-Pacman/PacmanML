@@ -1,10 +1,9 @@
 import heapq
 from MazeObject import MazeObject
 from Action import Action
-import time
 
 
-class AStar:
+class AStarAgent:
     def __init__(self, size, start, goal):
         self.maze_size = size  # Update maze_size here
         self.start = start
@@ -28,7 +27,6 @@ class AStar:
 
     def find_path(self, maze):
         open_set = [(0, self.start)]
-        time.sleep(0.1)
 
         while open_set:
             _, current = heapq.heappop(open_set)
