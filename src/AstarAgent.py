@@ -2,17 +2,16 @@ import heapq
 from MazeObject import MazeObject
 from Action import Action
 
-
 class AStarAgent:
-    def __init__(self, size, start, goal):
-        self.maze_size = size  # Update maze_size here
+    def __init__(self, size, start, reward_goal, enemy_goal):
+        self.maze_size = size
         self.start = start
-        self.goal = goal
+        self.reward_goal = reward_goal
+        self.enemy_goal = enemy_goal
         self.came_from = {}
         self.g_score = {}
         self.f_score = {}
 
-        # Initialize g_score and f_score based on maze size
         for row in range(size):
             for col in range(size):
                 cell = (row, col)
@@ -23,7 +22,11 @@ class AStarAgent:
         self.f_score[start] = self.heuristic(start)
 
     def heuristic(self, cell):
-        return abs(cell[0] - self.goal[0]) + abs(cell[1] - self.goal[1])
+        reward_distance = abs(cell[0] - self.reward_goal[0]) + abs(cell[1] - self.reward_goal[1])
+        enemy_distance = abs(cell[0] - self.enemy_goal[0]) + abs(cell[1] - self.enemy_goal[1])
+        # Add a penalty for cells close to the enemy
+        avoidance_penalty = 2  # You can adjust this value based on the desired avoidance strength
+        return reward_distance - avoidance_penalty * enemy_distance
 
     def find_path(self, maze):
         open_set = [(0, self.start)]
@@ -31,18 +34,17 @@ class AStarAgent:
         while open_set:
             _, current = heapq.heappop(open_set)
 
-            if current == self.goal:
+            if current == self.reward_goal:
                 return self.reconstruct_path(current)
 
-            for move in maze._move:  # Use the maze object to get valid moves
+            for move in maze._move:
                 neighbor = (current[0] + maze._move[Action(move)][0], current[1] + maze._move[Action(move)][1])
 
-                # Check if neighbor is out of bounds
                 if (
                         neighbor[0] < 0 or neighbor[0] >= maze._size or
                         neighbor[1] < 0 or neighbor[1] >= maze._size
                 ):
-                    continue  # Skip this move
+                    continue
 
                 if maze._data[neighbor[0]][neighbor[1]] == MazeObject.WALL.value:
                     continue
@@ -52,7 +54,7 @@ class AStarAgent:
                 if tentative_g_score < self.g_score[neighbor]:
                     self.came_from[neighbor] = current
                     self.g_score[neighbor] = tentative_g_score
-                    self.f_score[neighbor] = tentative_g_score + self.heuristic(neighbor)
+                    self.f_score[neighbor] = tentative_g_score - self.heuristic(neighbor)
 
                     heapq.heappush(open_set, (self.f_score[neighbor], neighbor))
 
@@ -65,4 +67,3 @@ class AStarAgent:
             path.append(current)
         path.reverse()
         return path
-

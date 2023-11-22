@@ -17,7 +17,7 @@ from MazeObject import MazeObject
 # Global configuration
 maze_size = 32
 frame_per_second = 30
-num_rewards_to_add = 500
+num_rewards_to_add = 10
 
 
 def main(screen):

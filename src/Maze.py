@@ -290,15 +290,15 @@ class Maze:
                 return agent.get_position()
 
     
-    def get_reward_direction(self, enemy_pos, agent_pos):
-        a_star = AStarAgent(self._size, enemy_pos, agent_pos)
+    def get_reward_direction(self, reward_pos, agent_pos, enemy_pos):
+        a_star = AStarAgent(self._size, agent_pos, reward_pos, enemy_pos)
         path = a_star.find_path(self)
         direction = Action.STAY
         if path and len(path) > 1:
             next_cell = path[1]
             # Determine the direction to move
-            delta_y = next_cell[0] - enemy_pos[0]
-            delta_x = next_cell[1] - enemy_pos[1]
+            delta_y = next_cell[0] - agent_pos[0]
+            delta_x = next_cell[1] - agent_pos[1]
 
             if delta_x == 0 and delta_y == -1:
                 direction = Action.UP
@@ -310,6 +310,7 @@ class Maze:
                 direction = Action.RIGHT
 
         return direction
+
     
     def get_enemy_direction(self, enemy_pos, agent_pos):
         a_star = AStar(self._size, enemy_pos, agent_pos)
@@ -355,7 +356,11 @@ class Maze:
 
             if agent.get_position() == reward_position:
                 self._reward_positions.remove(reward_position)
-            direction = self.get_reward_direction((agent.get_y(), agent.get_x()), reward_position)
+            # Get enemy position
+            enemy_pos = self.get_agent_pos()
+
+            # Use get_reward_direction to consider both reward and enemy positions
+            direction = self.get_reward_direction(reward_position, agent.get_position(), enemy_pos)
             # direction = Action(np.random.choice(valid_moves))
         elif direction.value not in valid_moves:
             return -1  # Failure

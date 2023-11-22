@@ -2,7 +2,7 @@ import heapq
 from MazeObject import MazeObject
 from Action import Action
 import time
-
+import random
 
 class AStar:
     def __init__(self, size, start, goal):
@@ -24,11 +24,12 @@ class AStar:
         self.f_score[start] = self.heuristic(start)
 
     def heuristic(self, cell):
-        return abs(cell[0] - self.goal[0]) + abs(cell[1] - self.goal[1])
+        agent_distance = abs(cell[0] - self.goal[0]) + abs(cell[1] - self.goal[1])
+        return agent_distance
 
     def find_path(self, maze):
         open_set = [(0, self.start)]
-        time.sleep(0.1)
+        # time.sleep(0.1)
 
         while open_set:
             _, current = heapq.heappop(open_set)
