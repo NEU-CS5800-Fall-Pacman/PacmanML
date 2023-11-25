@@ -19,7 +19,7 @@ class DQNAgent(Agent):
         self.epsilon_decay = 0.995
         self.epsilon_min = 0.01
         self.gamma = 0.99
-        self.learning_rate = 0.01
+        self.learning_rate = 0.5
         self.n_actions = n_actions
 
         # Q-network

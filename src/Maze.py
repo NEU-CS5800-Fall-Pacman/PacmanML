@@ -203,10 +203,10 @@ class Maze:
             return self.get_state(), -100, False  # Invalid move, negative reward
 
         agent_pos = self.get_agent_pos()
-        self._data[agent_pos[0]][agent_pos[1]] = MazeObject.EMPTY.value
         self._green_zone[0] = agent_pos
 
         if self._data[agent_pos[0]][agent_pos[1]] == MazeObject.REWARD.value:
+            self._data[agent_pos[0]][agent_pos[1]] = MazeObject.EMPTY.value
             self._score = self._score + 1
             self._update_score()
             return self.get_state(), 1, False  # Positive reward for collecting a treasure
