@@ -200,7 +200,7 @@ class Maze:
         status = self.move_agent(0, action)
         # Check if the new position is valid (not an obstacle)
         if status == -1:
-            return self.get_state(), -100, False  # Invalid move, negative reward
+            return self.get_state(), -100000000, False  # Invalid move, negative reward
 
         agent_pos = self.get_agent_pos()
         self._green_zone[0] = agent_pos
@@ -209,12 +209,12 @@ class Maze:
             self._data[agent_pos[0]][agent_pos[1]] = MazeObject.EMPTY.value
             self._score = self._score + 1
             self._update_score()
-            return self.get_state(), 1, False  # Positive reward for collecting a treasure
+            return self.get_state(), 5, False  # Positive reward for collecting a treasure
         elif agent_pos in self._red_zone:
             self.reset()
-            return self.get_state(), -10, True  # Agent caught by an enemy
+            return self.get_state(), -20, True  # Agent caught by an enemy
 
-        return self.get_state(), -1, False # Default negative reward for each step
+        return self.get_state(), -0.01, False # Default negative reward for each step
 
     def add_agent(self, color, is_hostile):
         """
@@ -296,8 +296,14 @@ class Maze:
 
         # Re-draw initial state
         self._data = np.copy(self._initial_data)
-        self._agents = []
-        self._agents = copy.deepcopy(self._initial_agents)
+        #self._agents = []
+        self._agents[0].set_position(self._initial_agents[0].get_y(), self._initial_agents[0].get_x())
+        for index in range(1, len(self._agents)):
+            self._agents[index].set_position(self._initial_agents[index].get_y(), self._initial_agents[index].get_x())
+        #self._agents = copy.deepcopy(self._initial_agents)
+        #initAgentPos = self._agents[0].get_position()
+        #agent.set_position(initAgentPos[0], initAgentPos[1])
+        #self._agents[0] = copy.deepcopy(agent)
         self._init_draw()
 
     def get_agent_pos(self):

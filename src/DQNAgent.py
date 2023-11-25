@@ -5,6 +5,7 @@ import numpy as np
 import random
 from collections import namedtuple, deque
 from Agent import *
+from MazeObject import *
 
 batch_size = 64
 target_update = 10
@@ -16,11 +17,13 @@ class DQNAgent(Agent):
         self.state_size = state_size
         self.action_size = action_size
         self.epsilon = 1.0
-        self.epsilon_decay = 0.995
+        self.epsilon_decay = 0.99995
         self.epsilon_min = 0.01
         self.gamma = 0.99
         self.learning_rate = 0.5
+        self.valid_actions = None
         self.n_actions = n_actions
+        self.update_counter = 0
 
         # Q-network
         self.q_network = nn.Sequential(
@@ -38,12 +41,12 @@ class DQNAgent(Agent):
         # Experience replay buffer
         self.replay_buffer = ReplayBuffer()
 
-    def set_valid_actions(self, n_actions):
-        self.n_actions = n_actions
+    def set_valid_actions(self, valid_actions):
+        self.valid_actions = valid_actions
 
     def choose_action(self, state):
         if np.random.rand() <= self.epsilon:
-            return self.n_actions[np.random.choice(len(self.n_actions))]
+            return self.valid_actions[np.random.choice(len(self.valid_actions))]
         q_values = self.q_network(torch.tensor(state, dtype=torch.float32))
         return self.n_actions[torch.argmax(q_values).item()]
 
@@ -65,11 +68,17 @@ class DQNAgent(Agent):
         self.optimizer.step()
 
         # Update the target network every target_update steps
-        # if 1000 % target_update == 0:
-        self.target_network.load_state_dict(self.q_network.state_dict())
+        if self.update_counter % target_update == 0:
+            self.target_network.load_state_dict(self.q_network.state_dict())
+
+        # Update the current Q-network
+        self.q_network.load_state_dict(self.q_network.state_dict())
 
         # Decay exploration rate
         self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
+
+        # Increment the update counter
+        self.update_counter += 1
 
 # Replay buffer class
 class ReplayBuffer:
@@ -82,6 +91,10 @@ class ReplayBuffer:
     def sample_batch(self, batch_size):
         batch = random.sample(self.buffer, batch_size)
         states, actions, next_states, rewards, dones = zip(*batch)
+        states = np.array(states)
+        next_states = np.array(next_states)
+        # Convert Enum actions to their integer values
+        actions = np.array([action.value for action in actions])
         return (
             torch.tensor(states, dtype=torch.float32),
             torch.tensor(actions, dtype=torch.int64),
