@@ -7,7 +7,7 @@ from collections import namedtuple, deque
 from Agent import *
 from MazeObject import *
 
-batch_size = 64
+batch_size = 128
 target_update = 10
 
 # Q-learning agent class
@@ -27,19 +27,29 @@ class DQNAgent(Agent):
 
         # Q-network
         self.q_network = nn.Sequential(
-            nn.Linear(state_size, 64),
+            nn.Linear(state_size, 256),
             nn.ReLU(),
-            nn.Linear(64, action_size)
+            nn.Linear(256, action_size)
         )
+        self.init_weights(self.q_network)
+
         self.target_network = nn.Sequential(
-            nn.Linear(state_size, 64),
+            nn.Linear(state_size, 256),
             nn.ReLU(),
-            nn.Linear(64, action_size)
+            nn.Linear(256, action_size)
         )
+        self.init_weights(self.target_network)
+
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate)
 
         # Experience replay buffer
         self.replay_buffer = ReplayBuffer()
+
+    def init_weights(self, model):
+        for m in model.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.constant_(m.weight, 0)
+                nn.init.constant_(m.bias, 0)
 
     def set_valid_actions(self, valid_actions):
         self.valid_actions = valid_actions
@@ -71,9 +81,6 @@ class DQNAgent(Agent):
         if self.update_counter % target_update == 0:
             self.target_network.load_state_dict(self.q_network.state_dict())
 
-        # Update the current Q-network
-        self.q_network.load_state_dict(self.q_network.state_dict())
-
         # Decay exploration rate
         self.epsilon = max(self.epsilon * self.epsilon_decay, self.epsilon_min)
 
@@ -82,17 +89,21 @@ class DQNAgent(Agent):
 
 # Replay buffer class
 class ReplayBuffer:
-    def __init__(self, capacity=10000):
+    def __init__(self, capacity=1000):
+        self.capacity = capacity
         self.buffer = deque(maxlen=capacity)
 
     def add_experience(self, experience):
+        if len(self.buffer) == self.capacity:
+            self.buffer.popleft()
         self.buffer.append(experience)
 
     def sample_batch(self, batch_size):
         batch = random.sample(self.buffer, batch_size)
         states, actions, next_states, rewards, dones = zip(*batch)
         states = np.array(states)
-        next_states = np.array(next_states)
+        next_states = np.array([np.array(next_state) for next_state in next_states])
+
         # Convert Enum actions to their integer values
         actions = np.array([action.value for action in actions])
         return (
