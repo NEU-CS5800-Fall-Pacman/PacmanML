@@ -93,7 +93,7 @@ class Maze:
         self._agents = []
         self.add_agent(Color.YELLOW, False)
         self.add_agent(Color.RED, True)
-        self.add_agent(Color.GREEN, True)
+        # self.add_agent(Color.GREEN, True)
         # self.add_agent(Color.CYAN, True)
         # self.add_agent(Color.MAGENTA, True)
 
@@ -300,6 +300,14 @@ class Maze:
                 return agent.get_position()
 
     
+    def get_closest_reward(self, agent_pos):
+        if not self._reward_positions:
+            return None
+
+        closest_reward = min(self._reward_positions, key=lambda pos: abs(pos[0] - agent_pos[0]) + abs(pos[1] - agent_pos[1]))
+        return closest_reward
+    
+    
     def get_reward_direction(self, reward_pos, agent_pos, enemy_pos):
         a_star = AStarAgent(self._size, agent_pos, reward_pos, enemy_pos)
         path = a_star.find_path(self)
@@ -355,39 +363,6 @@ class Maze:
         return direction
 
     
-    
-    # def get_enemy_direction(self, enemy_pos, agent_pos, move_probability=0.5, random_move_probability=0.3):
-    #     if random.random() < move_probability:
-    #         if random.random() < random_move_probability:
-    #             # Randomly choose a direction
-    #             directions = [Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT]
-    #             direction = random.choice(directions)
-    #         else:
-    #             # Use AStar to find the path
-    #             a_star = AStar(self._size, enemy_pos, agent_pos)
-    #             path = a_star.find_path(self)
-    #             direction = Action.STAY
-
-    #             if path and len(path) > 1:
-    #                 next_cell = path[1]
-    #                 # Determine the direction to move
-    #                 delta_y = next_cell[0] - enemy_pos[0]
-    #                 delta_x = next_cell[1] - enemy_pos[1]
-
-    #                 if delta_x == 0 and delta_y == -1:
-    #                     direction = Action.UP
-    #                 elif delta_x == 0 and delta_y == 1:
-    #                     direction = Action.DOWN
-    #                 elif delta_x == -1 and delta_y == 0:
-    #                     direction = Action.LEFT
-    #                 elif delta_x == 1 and delta_y == 0:
-    #                     direction = Action.RIGHT
-    #     else:
-    #         direction = Action.STAY
-
-    #     return direction
-
-    
 
     def move_agent(self, index, direction=None):
         """
@@ -406,18 +381,16 @@ class Maze:
 
         # Random if not given
         if direction is None:
-            # Use get_enemy_direction to move towards the next available reward
-            if self._reward_positions:
-                reward_position = self._reward_positions[0]  # Choose the first reward position
+            # Use get_closest_reward to get the closest reward
+            closest_reward = self.get_closest_reward(agent.get_position())
 
-            if agent.get_position() == reward_position:
-                self._reward_positions.remove(reward_position)
-            # Get enemy position
-            enemy_pos = self.get_agent_pos()
-
+            if closest_reward == agent.get_position():
+                # Remove the closest reward from the list
+                self._reward_positions.remove(closest_reward)
+            
             # Use get_reward_direction to consider both reward and enemy positions
-            direction = self.get_reward_direction(reward_position, agent.get_position(), enemy_pos)
-            # direction = Action(np.random.choice(valid_moves))
+            direction = self.get_reward_direction(closest_reward, agent.get_position(), self.get_agent_pos())
+
         elif direction.value not in valid_moves:
             return -1  # Failure
 

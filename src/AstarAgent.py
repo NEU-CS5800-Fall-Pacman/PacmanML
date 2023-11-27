@@ -24,7 +24,7 @@ class AStarAgent:
     def heuristic(self, cell):
         reward_distance = abs(cell[0] - self.reward_goal[0]) + abs(cell[1] - self.reward_goal[1])
         enemy_distance = abs(cell[0] - self.enemy_goal[0]) + abs(cell[1] - self.enemy_goal[1])
-        return  0.2*reward_distance - 0.8*enemy_distance
+        return  0.05*reward_distance - 0.95*enemy_distance
 
     def find_path(self, maze):
         open_set = [(0, self.start)]
