@@ -17,6 +17,7 @@ from Color import *
 from Agent import Agent
 from Astar import *
 from AstarAgent import *
+import random
 
 
 class Maze:
@@ -68,6 +69,7 @@ class Maze:
         self._initial_agents = copy.deepcopy(self._agents)
         self._init_draw()
 
+
     def _init_objects(self):
         if self._data is None:
             if self._wall_coverage < 0 or self._wall_coverage >= 1:
@@ -84,13 +86,25 @@ class Maze:
             # Store reward positions in the _reward_positions list
             self._reward_positions = np.argwhere(self._data == MazeObject.REWARD.value).tolist()
 
+            # If filled_reward is False, add rewards automatically
+            if not self._filled_reward:
+                self._add_rewards()
+
         self._agents = []
         self.add_agent(Color.YELLOW, False)
         self.add_agent(Color.RED, True)
-        # self.add_agent(Color.GREEN, True)
+        self.add_agent(Color.GREEN, True)
         # self.add_agent(Color.CYAN, True)
         # self.add_agent(Color.MAGENTA, True)
 
+    def _add_rewards(self):
+        """
+        Add rewards to the maze. This function is called automatically if filled_reward is False.
+        """
+        num_rewards_to_add = 200  # You can adjust this number
+        for _ in range(num_rewards_to_add):
+            self.add_reward()
+    
     def _init_draw(self):
         # Initialize object drawing
         for j in range(0, self._size):
@@ -280,9 +294,34 @@ class Maze:
         self._agents = copy.deepcopy(self._initial_agents)
         self._init_draw()
 
-        # Re-add rewards to their original positions
-        for position in current_reward_positions:
-            self.add_reward(y=position[0], x=position[1])
+        # # Re-add rewards to their original positions
+        # for position in current_reward_positions:
+        #     self.add_reward(y=position[0], x=position[1])
+
+    
+    # def reset(self):
+    #     """
+    #     Reset the maze to its original generation and re-add rewards to their original positions
+    #     """
+
+    #     # Store the current reward positions
+    #     current_reward_positions = copy.deepcopy(self._reward_positions)
+
+    #     # Update scoreboard
+    #     self._iteration = self._iteration + 1
+    #     self._update_iteration()
+    #     self._score = 0
+    #     self._update_score()
+
+    #     # Re-draw initial state
+    #     self._data = np.copy(self._initial_data)
+    #     self._agents = []
+    #     self._agents = copy.deepcopy(self._initial_agents)
+    #     self._init_draw()
+
+    #     # Re-add rewards to their original positions
+    #     for position in current_reward_positions:
+    #         self.add_reward(y=position[0], x=position[1])
 
     def get_agent_pos(self):
         for agent in self._agents:
@@ -312,26 +351,72 @@ class Maze:
         return direction
 
     
-    def get_enemy_direction(self, enemy_pos, agent_pos):
-        a_star = AStar(self._size, enemy_pos, agent_pos)
-        path = a_star.find_path(self)
-        direction = Action.STAY
-        if path and len(path) > 1:
-            next_cell = path[1]
-            # Determine the direction to move
-            delta_y = next_cell[0] - enemy_pos[0]
-            delta_x = next_cell[1] - enemy_pos[1]
+    def get_enemy_direction(self, enemy_pos, agent_pos, move_probability=0.5, random_move_probability=0.3):
+        if random.random() < move_probability:
+            valid_moves = self.get_agent_valid_move(enemy_pos[0], enemy_pos[1])
 
-            if delta_x == 0 and delta_y == -1:
-                direction = Action.UP
-            elif delta_x == 0 and delta_y == 1:
-                direction = Action.DOWN
-            elif delta_x == -1 and delta_y == 0:
-                direction = Action.LEFT
-            elif delta_x == 1 and delta_y == 0:
-                direction = Action.RIGHT
+            if random.random() < random_move_probability and valid_moves:
+                # Randomly choose a valid direction
+                direction = random.choice(valid_moves)
+            else:
+                # Use AStar to find the path
+                a_star = AStar(self._size, enemy_pos, agent_pos)
+                path = a_star.find_path(self)
+                direction = Action.STAY
+
+                if path and len(path) > 1:
+                    next_cell = path[1]
+                    # Determine the direction to move
+                    delta_y = next_cell[0] - enemy_pos[0]
+                    delta_x = next_cell[1] - enemy_pos[1]
+
+                    if delta_x == 0 and delta_y == -1 and Action.UP in valid_moves:
+                        direction = Action.UP
+                    elif delta_x == 0 and delta_y == 1 and Action.DOWN in valid_moves:
+                        direction = Action.DOWN
+                    elif delta_x == -1 and delta_y == 0 and Action.LEFT in valid_moves:
+                        direction = Action.LEFT
+                    elif delta_x == 1 and delta_y == 0 and Action.RIGHT in valid_moves:
+                        direction = Action.RIGHT
+        else:
+            direction = Action.STAY
 
         return direction
+
+    
+    
+    # def get_enemy_direction(self, enemy_pos, agent_pos, move_probability=0.5, random_move_probability=0.3):
+    #     if random.random() < move_probability:
+    #         if random.random() < random_move_probability:
+    #             # Randomly choose a direction
+    #             directions = [Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT]
+    #             direction = random.choice(directions)
+    #         else:
+    #             # Use AStar to find the path
+    #             a_star = AStar(self._size, enemy_pos, agent_pos)
+    #             path = a_star.find_path(self)
+    #             direction = Action.STAY
+
+    #             if path and len(path) > 1:
+    #                 next_cell = path[1]
+    #                 # Determine the direction to move
+    #                 delta_y = next_cell[0] - enemy_pos[0]
+    #                 delta_x = next_cell[1] - enemy_pos[1]
+
+    #                 if delta_x == 0 and delta_y == -1:
+    #                     direction = Action.UP
+    #                 elif delta_x == 0 and delta_y == 1:
+    #                     direction = Action.DOWN
+    #                 elif delta_x == -1 and delta_y == 0:
+    #                     direction = Action.LEFT
+    #                 elif delta_x == 1 and delta_y == 0:
+    #                     direction = Action.RIGHT
+    #     else:
+    #         direction = Action.STAY
+
+    #     return direction
+
+    
 
     def move_agent(self, index, direction=None):
         """

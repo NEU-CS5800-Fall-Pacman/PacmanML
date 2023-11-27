@@ -24,9 +24,7 @@ class AStarAgent:
     def heuristic(self, cell):
         reward_distance = abs(cell[0] - self.reward_goal[0]) + abs(cell[1] - self.reward_goal[1])
         enemy_distance = abs(cell[0] - self.enemy_goal[0]) + abs(cell[1] - self.enemy_goal[1])
-        # Add a penalty for cells close to the enemy
-        avoidance_penalty = 2  # You can adjust this value based on the desired avoidance strength
-        return reward_distance - avoidance_penalty * enemy_distance
+        return  0.2*reward_distance - 0.8*enemy_distance
 
     def find_path(self, maze):
         open_set = [(0, self.start)]
@@ -54,7 +52,7 @@ class AStarAgent:
                 if tentative_g_score < self.g_score[neighbor]:
                     self.came_from[neighbor] = current
                     self.g_score[neighbor] = tentative_g_score
-                    self.f_score[neighbor] = tentative_g_score - self.heuristic(neighbor)
+                    self.f_score[neighbor] = tentative_g_score + self.heuristic(neighbor)
 
                     heapq.heappush(open_set, (self.f_score[neighbor], neighbor))
 
