@@ -294,35 +294,6 @@ class Maze:
         self._agents = copy.deepcopy(self._initial_agents)
         self._init_draw()
 
-        # # Re-add rewards to their original positions
-        # for position in current_reward_positions:
-        #     self.add_reward(y=position[0], x=position[1])
-
-    
-    # def reset(self):
-    #     """
-    #     Reset the maze to its original generation and re-add rewards to their original positions
-    #     """
-
-    #     # Store the current reward positions
-    #     current_reward_positions = copy.deepcopy(self._reward_positions)
-
-    #     # Update scoreboard
-    #     self._iteration = self._iteration + 1
-    #     self._update_iteration()
-    #     self._score = 0
-    #     self._update_score()
-
-    #     # Re-draw initial state
-    #     self._data = np.copy(self._initial_data)
-    #     self._agents = []
-    #     self._agents = copy.deepcopy(self._initial_agents)
-    #     self._init_draw()
-
-    #     # Re-add rewards to their original positions
-    #     for position in current_reward_positions:
-    #         self.add_reward(y=position[0], x=position[1])
-
     def get_agent_pos(self):
         for agent in self._agents:
             if not agent.is_hostile():

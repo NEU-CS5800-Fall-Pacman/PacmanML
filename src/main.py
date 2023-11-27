@@ -17,7 +17,6 @@ from MazeObject import MazeObject
 # Global configuration
 maze_size = 32
 frame_per_second = 30
-# num_rewards_to_add = 200
 
 
 def main(screen):
@@ -35,9 +34,6 @@ def main(screen):
     # Maze setup
     maze = Maze(maze_size, wall_coverage=0.2, filled_reward=False)
 
-    # # Add rewards to the maze
-    # for _ in range(num_rewards_to_add):
-    #     maze.add_reward()
     # Main UI loop
     while True:
         # Move agent
