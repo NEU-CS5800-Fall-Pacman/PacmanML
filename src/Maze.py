@@ -93,7 +93,7 @@ class Maze:
         self._agents = []
         self.add_agent(Color.YELLOW, False)
         self.add_agent(Color.RED, True)
-        # self.add_agent(Color.GREEN, True)
+        self.add_agent(Color.GREEN, True)
         # self.add_agent(Color.CYAN, True)
         # self.add_agent(Color.MAGENTA, True)
 
