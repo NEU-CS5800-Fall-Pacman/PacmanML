@@ -17,6 +17,7 @@ from Color import *
 from Agent import Agent
 from Astar import *
 from DQNAgent import *
+from Q_learning import *
 
 Experience = namedtuple("Experience", field_names=["state", "action", "next_state", "reward", "done"])
 
@@ -32,6 +33,8 @@ class Maze:
         self._size = size  # Maze size
         self._wall_coverage = wall_coverage  # Percentage of the maze wall should be covered
         self._filled_reward = filled_reward  # If reward should be filled within non-wall space
+        self._collected = 0
+        self._num_reward = 20
 
         # Main game box
         self._box = curses.newwin(self._size + 2, (self._size + 1) * 2, 4, 0)
@@ -81,6 +84,11 @@ class Maze:
         self._agents = []
         self.add_agent(Color.YELLOW, False)
         self.add_agent(Color.RED, True)
+
+        for _ in range(self._num_reward):
+            while self.add_reward() == -1:
+                self.add_reward()
+
         # self.add_agent(Color.GREEN, True)
         # self.add_agent(Color.CYAN, True)
         # self.add_agent(Color.MAGENTA, True)
@@ -169,14 +177,14 @@ class Maze:
                 rand_x = np.random.randint(0, self._size)
                 rand_y = np.random.randint(0, self._size)
 
-                if (self._data[rand_y][rand_x] == MazeObject.WALL.value or
+                if (self._data[rand_y][rand_x] == MazeObject.WALL.value or self._data[rand_y][rand_x] == MazeObject.REWARD.value or
                         (rand_y, rand_x) in self._red_zone or (rand_y, rand_x) in self._green_zone):
                     continue
 
                 x = rand_x
                 y = rand_y
                 break
-        elif self._data[y][x] == MazeObject.WALL.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
+        elif self._data[y][x] == MazeObject.WALL.value or self._data[y][x] == MazeObject.REWARD.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
             return -1  # Not a valid spawn point
 
         # Store and render
@@ -203,20 +211,27 @@ class Maze:
         status = self.move_agent(0, action)
         # Check if the new position is valid (not an obstacle)
         if status == -1:
-            return self.get_state(), -100000000, False  # Invalid move, negative reward
+            return [], -1000000000, False  # Invalid move, negative reward
 
         agent_pos = self.get_agent_pos()
-        self._green_zone[0] = agent_pos
+        self._green_zone = []
+        self._green_zone.append(agent_pos)
 
         if self._data[agent_pos[0]][agent_pos[1]] == MazeObject.REWARD.value:
             self._data[agent_pos[0]][agent_pos[1]] = MazeObject.EMPTY.value
+            self._collected += 1
             self._score = self._score + 1
             self._update_score()
-            return self.get_state(), 10, False  # Positive reward for collecting a treasure
-        elif agent_pos in self._red_zone:
-            return self.get_state(), -50, True  # Agent caught by an enemy
 
-        return self.get_state(), -1, False # Default negative reward for each step
+            if self._collected == self._num_reward:
+                while True:
+                    sleep(1)
+
+            return self.get_state(), 10, (self._collected == self._num_reward)  # Positive reward for collecting a treasure
+        elif agent_pos in self._red_zone:
+            return self.get_state(), -100, True  # Agent caught by an enemy
+
+        return self.get_state(), -0.01, False  # Default negative reward for each step
 
     def add_agent(self, color, is_hostile):
         """
@@ -238,7 +253,7 @@ class Maze:
                 if is_hostile:
                     agent = Agent(color, is_hostile, (y, x))
                 else:
-                    agent = DQNAgent(color, is_hostile, (y, x), self._size**2, 4, [Action.STAY, Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT])
+                    agent = QLearningAgent(color, is_hostile, (y, x))
                 break
 
         self._agents.append(agent)
@@ -295,6 +310,7 @@ class Maze:
         self._update_iteration()
         self._score = 0
         self._update_score()
+        self._collected = 0
 
         self._green_zone = []
         self._red_zone = [(-1, -1)]
@@ -358,24 +374,27 @@ class Maze:
         # if the agent is an enemy
         if agent.is_hostile():
             direction = self.get_enemy_direction(agent.get_position(), self.get_agent_pos())
+            agent.set_move()
 
-        # Set old cell to empty/reward
-        char = self._sprite[MazeObject(self._data[agent.get_y()][agent.get_x()])]
-        self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, char[0], Color.WHITE)
-        self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, char[1], Color.WHITE)
+        if (agent.is_hostile() and (not agent.has_moved())) or (not agent.is_hostile()):
+            # Set old cell to empty/reward
+            char = self._sprite[MazeObject(self._data[agent.get_y()][agent.get_x()])]
+            self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, char[0], Color.WHITE)
+            self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, char[1], Color.WHITE)
 
-        # Set new cell to agent and change tracker
-        agent.set_position(agent.get_y() + self._move[direction][0], agent.get_x() + self._move[direction][1])
+            # Set new cell to agent and change tracker
+            agent.set_position(agent.get_y() + self._move[direction][0], agent.get_x() + self._move[direction][1])
 
-        if agent.is_hostile():
-            if agent.get_position() in self._green_zone:
-                return 0
+            if agent.is_hostile():
+                if agent.get_position() in self._green_zone:
+                    return 0
 
-            self._red_zone[index] = agent.get_position()
+                self._red_zone[index] = agent.get_position()
 
-        char = self._sprite[MazeObject.AGENT]
-        self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, char[0], agent.get_color())
-        self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, char[1], agent.get_color())
+            char = self._sprite[MazeObject.AGENT]
+            self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, char[0], agent.get_color())
+            self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, char[1], agent.get_color())
+
 
         return 0  # Success
 
@@ -388,29 +407,38 @@ class Maze:
         for index in range(len(self._agents)):
             if index == 0:
                 current_state = self.get_state()
-                self._agents[0].set_valid_actions(self.get_agent_valid_move(self._agents[0].get_y(), self._agents[0].get_x()))
-                action = self._agents[0].choose_action(self.get_state())
-                while action not in self.get_agent_valid_move(self._agents[0].get_y(), self._agents[0].get_x()):
-                    action = np.random.choice(self.get_agent_valid_move(self._agents[0].get_y(), self._agents[0].get_x()))
+                self._agents[0].set_n_actions(self.get_agent_valid_move(self._agents[0].get_y(), self._agents[0].get_x()))
+                action = self._agents[0].choose_action(hash(tuple(self.get_state())))
+                # while action not in self.get_agent_valid_move(self._agents[0].get_y(), self._agents[0].get_x()):
+                #     action = np.random.choice(self.get_agent_valid_move(self._agents[0].get_y(), self._agents[0].get_x()))
                 next_state, reward, done = self.step(action)
                 if done:
-                    self._agents[0].replay_buffer.add_experience(Experience(current_state, action, next_state, reward, done))
-                    self._agents[0].update_q_network()
+                    #self._agents[0].replay_buffer.add_experience(Experience(current_state, action, next_state, reward, done))
+                    #self._agents[0].update_q_network()
+                    current_state_hash = hash((tuple(current_state)))
+                    next_state_hash = hash((tuple(next_state)))
+                    self._agents[0].update_q_value(current_state_hash, action, reward, next_state_hash)
                     self.reset()
-                    break
+                    return
             else:
                 self.move_agent(index, None)
                 if self._agents[index].get_position() in self._green_zone:
                     next_state = self.get_state()
-                    reward = -50
+                    reward = -100
                     done = True
-                    self._agents[0].replay_buffer.add_experience(
-                        Experience(current_state, action, next_state, reward, done))
-                    self._agents[0].update_q_network()
+                    # self._agents[0].replay_buffer.add_experience(
+                    #     Experience(current_state, action, next_state, reward, done))
+                    # self._agents[0].update_q_network()
+                    current_state_hash = hash((tuple(current_state)))
+                    next_state_hash = hash((tuple(next_state)))
+                    self._agents[0].update_q_value(current_state_hash, action, reward, next_state_hash)
                     self.reset()
-                    break
+                    return
 
         next_state = self.get_state()
-        self._agents[0].replay_buffer.add_experience(
-            Experience(current_state, action, next_state, reward, done))
-        self._agents[0].update_q_network()
+        # self._agents[0].replay_buffer.add_experience(
+        #     Experience(current_state, action, next_state, reward, done))
+        # self._agents[0].update_q_network()
+        current_state_hash = hash((tuple(current_state)))
+        next_state_hash = hash((tuple(next_state)))
+        self._agents[0].update_q_value(current_state_hash, action, reward, next_state_hash)

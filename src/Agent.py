@@ -11,6 +11,7 @@ class Agent:
         self._color = color
         self._is_hostile = is_hostile
         self._position = position
+        self._has_moved = False
 
     def is_hostile(self):
         return self._is_hostile
@@ -29,3 +30,9 @@ class Agent:
 
     def set_position(self, y, x):
         self._position = (y, x)
+
+    def has_moved(self):
+        return self._has_moved
+
+    def set_move(self):
+        self._has_moved = not self._has_moved

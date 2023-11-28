@@ -8,7 +8,7 @@ from Agent import *
 from MazeObject import *
 
 batch_size = 128
-target_update = 10
+target_update = 1000
 
 # Q-learning agent class
 class DQNAgent(Agent):
@@ -17,10 +17,10 @@ class DQNAgent(Agent):
         self.state_size = state_size
         self.action_size = action_size
         self.epsilon = 1.0
-        self.epsilon_decay = 0.99995
+        self.epsilon_decay = 0.995
         self.epsilon_min = 0.01
         self.gamma = 0.99
-        self.learning_rate = 0.5
+        self.learning_rate = 0.1
         self.valid_actions = None
         self.n_actions = n_actions
         self.update_counter = 0
@@ -31,25 +31,25 @@ class DQNAgent(Agent):
             nn.ReLU(),
             nn.Linear(256, action_size)
         )
-        self.init_weights(self.q_network)
+        self.q_network[-1].apply(lambda x: nn.init.zeros_(x.weight))
 
         self.target_network = nn.Sequential(
             nn.Linear(state_size, 256),
             nn.ReLU(),
             nn.Linear(256, action_size)
         )
-        self.init_weights(self.target_network)
+        self.target_network[-1].apply(lambda x: nn.init.zeros_(x.weight))
 
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate)
 
         # Experience replay buffer
         self.replay_buffer = ReplayBuffer()
 
-    def init_weights(self, model):
-        for m in model.modules():
-            if isinstance(m, nn.Linear):
-                nn.init.constant_(m.weight, 0)
-                nn.init.constant_(m.bias, 0)
+    # def init_weights(self, model):
+    #     for m in model.modules():
+    #         if isinstance(m, nn.Linear):
+    #             nn.init.constant_(m.weight, 0)
+    #             nn.init.constant_(m.bias, 0)
 
     def set_valid_actions(self, valid_actions):
         self.valid_actions = valid_actions
@@ -89,14 +89,25 @@ class DQNAgent(Agent):
 
 # Replay buffer class
 class ReplayBuffer:
-    def __init__(self, capacity=1000):
+    def __init__(self, capacity=10000):
         self.capacity = capacity
         self.buffer = deque(maxlen=capacity)
+        self.seen_states_actions = set()
 
     def add_experience(self, experience):
+        state, action, _, _, _ = experience
+        state_action_hash = hash((tuple(state.flatten()), action))
+
+        if state_action_hash not in self.seen_states_actions:
+            self.buffer.append(experience)
+            self.seen_states_actions.add(state_action_hash)
+
         if len(self.buffer) == self.capacity:
-            self.buffer.popleft()
-        self.buffer.append(experience)
+            # If capacity is reached, remove the oldest experience
+            removed_experience = self.buffer.popleft()
+            removed_state, removed_action, _, _, _ = removed_experience
+            removed_state_action_hash = hash((tuple(removed_state.flatten()), removed_action))
+            self.seen_states_actions.remove(removed_state_action_hash)
 
     def sample_batch(self, batch_size):
         batch = random.sample(self.buffer, batch_size)
