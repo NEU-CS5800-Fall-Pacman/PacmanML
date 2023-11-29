@@ -24,7 +24,7 @@ import sys
 class Maze:
     def __init__(self, size, data=None, wall_coverage=None, filled_reward=False):
         self._sprite = {MazeObject.WALL: ("█", "█"), MazeObject.EMPTY: (" ", " "),
-                        MazeObject.REWARD: (".", " "), MazeObject.AGENT: ("A", " "), "GHOST": ("G", " ")}
+                        MazeObject.REWARD: ("・", ""), MazeObject.AGENT: ("⬤", " "), "GHOST": ("", " ")}
         self._static_color = {MazeObject.WALL: Color.BLUE,
                               MazeObject.EMPTY: Color.MAGENTA,
                               MazeObject.REWARD: Color.WHITE}
@@ -95,9 +95,9 @@ class Maze:
         self._agents = []
         self.add_agent(Color.YELLOW, False)
         self.add_agent(Color.RED, True, self._sprite["GHOST"])
-        # self.add_agent(Color.GREEN, True, self._sprite["GHOST"])
-        # self.add_agent(Color.CYAN, True, self._sprite["GHOST"])
-        # self.add_agent(Color.MAGENTA, True, self._sprite["GHOST"])
+        self.add_agent(Color.GREEN, True, self._sprite["GHOST"])
+        self.add_agent(Color.CYAN, True, self._sprite["GHOST"])
+        self.add_agent(Color.MAGENTA, True, self._sprite["GHOST"])
 
     def _add_rewards(self):
         """
@@ -157,7 +157,12 @@ class Maze:
             np.random.shuffle(walls)
             for index in range(num_walls):
                 remove_wall = walls[index]
-                self._data[remove_wall[0]][remove_wall[1]] = MazeObject.EMPTY.value
+
+                empty_data = MazeObject.EMPTY.value
+                if self._filled_reward:
+                    empty_data = MazeObject.REWARD.value
+
+                self._data[remove_wall[0]][remove_wall[1]] = empty_data
                 new_energy = self.energy() - 1
                 if new_energy <= current_energy:
                     self._data[remove_wall[0]][remove_wall[1]] = MazeObject.WALL.value

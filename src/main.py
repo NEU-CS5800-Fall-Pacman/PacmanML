@@ -16,7 +16,7 @@ from MazeObject import MazeObject
 
 # Global configuration
 maze_size = 32
-frame_per_second = 30
+frame_per_second = 60
 
 
 def main(screen):
