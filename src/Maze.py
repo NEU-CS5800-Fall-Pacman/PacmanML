@@ -16,15 +16,12 @@ from Action import Action
 from Color import *
 from Agent import Agent
 from Astar import *
-from DQNAgent import *
 from Q_learning import *
-
-Experience = namedtuple("Experience", field_names=["state", "action", "next_state", "reward", "done"])
 
 class Maze:
     def __init__(self, size, data=None, wall_coverage=None, filled_reward=False):
         self._sprite = {MazeObject.WALL: ("█", "█"), MazeObject.EMPTY: (" ", " "),
-                        MazeObject.REWARD: ("・", ""), MazeObject.AGENT: ("●", " ")}
+                        MazeObject.REWARD: ("・", ""), MazeObject.AGENT: ("●", " "), "GHOST": ("G", " ")}
         self._static_color = {MazeObject.WALL: Color.BLUE,
                               MazeObject.EMPTY: Color.MAGENTA,
                               MazeObject.REWARD: Color.WHITE}
@@ -83,11 +80,14 @@ class Maze:
                                           p=[self._wall_coverage, 1.0 - self._wall_coverage])
         self._agents = []
         self.add_agent(Color.YELLOW, False)
-        self.add_agent(Color.RED, True)
+        self.add_agent(Color.RED, True, self._sprite["GHOST"])
 
-        for _ in range(self._num_reward):
-            while self.add_reward() == -1:
-                self.add_reward()
+        if not self._filled_reward:
+            for _ in range(self._num_reward):
+                while self.add_reward() == -1:
+                    self.add_reward()
+        else:
+            self._num_reward = len(np.argwhere(self._data == MazeObject.REWARD.value).tolist())
 
         # self.add_agent(Color.GREEN, True)
         # self.add_agent(Color.CYAN, True)
@@ -143,7 +143,12 @@ class Maze:
             np.random.shuffle(walls)
             for index in range(num_walls):
                 remove_wall = walls[index]
-                self._data[remove_wall[0]][remove_wall[1]] = MazeObject.EMPTY.value
+
+                empty_data = MazeObject.EMPTY.value
+                if self._filled_reward:
+                    empty_data = MazeObject.REWARD.value
+
+                self._data[remove_wall[0]][remove_wall[1]] = empty_data
                 new_energy = self.energy() - 1
                 if new_energy <= current_energy:
                     self._data[remove_wall[0]][remove_wall[1]] = MazeObject.WALL.value
@@ -233,16 +238,22 @@ class Maze:
 
         return self.get_state(), -0.01, False  # Default negative reward for each step
 
-    def add_agent(self, color, is_hostile):
+    def add_agent(self, color, is_hostile, sprite=None):
         """
         Add new agent into the maze, given color of the agent, and if agent is hostile
-
         :param color: color of the agent, use Color class
         :param is_hostile: whether the agent consumes reward and catch non-hostile agents
+        :param sprite: custom sprite for this agent
         :return: index of newly added agent
         """
 
+        agent_sprite = sprite
         agent = None
+
+        # Init sprite
+        if agent_sprite is None:
+            agent_sprite = self._sprite[MazeObject.AGENT]
+
         while True:
             x = np.random.randint(0, self._size - 1)
             y = np.random.randint(0, self._size - 1)
@@ -251,9 +262,9 @@ class Maze:
                 continue
             else:
                 if is_hostile:
-                    agent = Agent(color, is_hostile, (y, x))
+                    agent = Agent(color, is_hostile, (y, x), agent_sprite)
                 else:
-                    agent = QLearningAgent(color, is_hostile, (y, x))
+                    agent = QLearningAgent(color, is_hostile, (y, x), agent_sprite)
                 break
 
         self._agents.append(agent)
@@ -391,7 +402,7 @@ class Maze:
 
                 self._red_zone[index] = agent.get_position()
 
-            char = self._sprite[MazeObject.AGENT]
+            char = agent.get_sprite()
             self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, char[0], agent.get_color())
             self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, char[1], agent.get_color())
 
