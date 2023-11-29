@@ -6,6 +6,7 @@
 ## Copyright: Copyright 2023
 ## License: GPL
 ##################################################
+import math
 
 import numpy as np
 import copy
@@ -19,9 +20,9 @@ from Astar import *
 
 
 class Maze:
-    def __init__(self, size, data=None, wall_coverage=None, filled_reward=False):
+    def __init__(self, size, data=None, wall_coverage=None, filled_reward=False, seed=0):
         self._sprite = {MazeObject.WALL: ("█", "█"), MazeObject.EMPTY: (" ", " "),
-                        MazeObject.REWARD: ("・", ""), MazeObject.AGENT: ("●", " ")}
+                        MazeObject.REWARD: (".", " "), MazeObject.AGENT: ("A", " ")}
         self._static_color = {MazeObject.WALL: Color.BLUE,
                               MazeObject.EMPTY: Color.MAGENTA,
                               MazeObject.REWARD: Color.WHITE}
@@ -30,6 +31,7 @@ class Maze:
         self._size = size  # Maze size
         self._wall_coverage = wall_coverage  # Percentage of the maze wall should be covered
         self._filled_reward = filled_reward  # If reward should be filled within non-wall space
+        self._seed = seed
 
         # Main game box
         self._box = curses.newwin(self._size + 2, (self._size + 1) * 2, 4, 0)
@@ -50,8 +52,8 @@ class Maze:
         for line in range(4):
             self._score_box.addstr(line, 0, " " * (self._size + 1) * 2, self._static_color[MazeObject.REWARD])
 
-        self._score_box.addstr(1, 0, " ITERATIONS", curses.A_BOLD | Color.WHITE)
-        self._score_box.addstr(1, (self._size + 1) * 2 - 14, "🍒 HIGH SCORE", curses.A_BOLD | Color.WHITE)
+        self._score_box.addstr(1, 0, " ENERGY", curses.A_BOLD | Color.WHITE)
+        self._score_box.addstr(1, (self._size + 1) * 2 - 6, "CELLS", curses.A_BOLD | Color.WHITE)
         self._update_score()
         self._update_iteration()
 
@@ -60,9 +62,15 @@ class Maze:
         self._initial_agents = []
 
         self._init_objects()
-        self.hill_Climbing()
         self._initial_data = np.copy(self._data)
         self._initial_agents = copy.deepcopy(self._agents)
+
+        self._current_energy = -math.inf
+        self._walls = None
+        self._num_walls = 0
+        self._num_cells = 0
+        self._remove_wall = None
+
         self._init_draw()
 
     def _init_objects(self):
@@ -74,14 +82,11 @@ class Maze:
             if self._filled_reward:
                 non_wall_obj = MazeObject.REWARD.value
 
+            np.random.seed(self._seed)
             self._data = np.random.choice([MazeObject.WALL.value, non_wall_obj], size=(self._size, self._size),
                                           p=[self._wall_coverage, 1.0 - self._wall_coverage])
         self._agents = []
         self.add_agent(Color.YELLOW, False)
-        self.add_agent(Color.RED, True)
-        self.add_agent(Color.GREEN, True)
-        self.add_agent(Color.CYAN, True)
-        self.add_agent(Color.MAGENTA, True)
 
     def _init_draw(self):
         # Initialize object drawing
@@ -119,39 +124,48 @@ class Maze:
         return self.bfs(self._agents[0])
 
     def hill_Climbing(self):
-        while True:
-            walls = []
-            for j in range(0, self._size):
-                for i in range(0, self._size):
-                    if self._data[j][i] == MazeObject.WALL.value:
-                        walls.append((j, i))
-            num_walls = len(walls)
-            num_cells = self._size * self._size - num_walls
-            current_energy = self.energy()
-            if current_energy == num_cells:
-                return
-            np.random.shuffle(walls)
-            for index in range(num_walls):
-                remove_wall = walls[index]
-                self._data[remove_wall[0]][remove_wall[1]] = MazeObject.EMPTY.value
-                new_energy = self.energy() - 1
-                if new_energy <= current_energy:
-                    self._data[remove_wall[0]][remove_wall[1]] = MazeObject.WALL.value
-                else:
-                    current_energy = new_energy + 1
-                    num_cells += 1
+        if self.energy() == self._num_cells:
+            return
 
-                if current_energy == num_cells:
-                    return
-            # restart
-            self._init_objects()
+        if self.check_energy():
+            self._current_energy = self.energy() + 1
+
+            cell = MazeObject.EMPTY.value
+            if self._filled_reward:
+                cell = MazeObject.REWARD.value
+
+            np.random.shuffle(self._walls)
+            self._remove_wall = self._walls[0]
+            self._data[self._remove_wall[0]][self._remove_wall[1]] = cell
+        else:
+            self._current_energy = self.energy() - 1
+            self._data[self._remove_wall[0]][self._remove_wall[1]] = MazeObject.WALL.value
+
+        self._init_draw()
+
+    def check_energy(self):
+        self._walls = []
+        for j in range(0, self._size):
+            for i in range(0, self._size):
+                if self._data[j][i] == MazeObject.WALL.value:
+                    self._walls.append((j, i))
+        self._num_walls = len(self._walls)
+        self._num_cells = self._size * self._size - self._num_walls
+
+        self._iteration = self._current_energy
+        self._update_iteration()
+
+        self._score = self._num_cells
+        self._update_score()
+
+        return self.energy() > self._current_energy
 
     def _update_score(self):
-        self._score_box.addstr(2, (self._size + 1) * 2 - 1 - len(f'{self._score:08}'), f'{self._score:08}',
+        self._score_box.addstr(2, (self._size + 1) * 2 - 1 - len(f'{self._score:04}'), f'{self._score:04}',
                                Color.WHITE)
 
     def _update_iteration(self):
-        self._score_box.addstr(2, 0, " " + f'{self._iteration:06}', Color.WHITE)
+        self._score_box.addstr(2, 0, " " + f'{self._iteration:05}', Color.WHITE)
 
     def add_reward(self, y=None, x=None):
         """
@@ -349,5 +363,4 @@ class Maze:
         return 0  # Success
 
     def play(self):
-        for index in range(len(self._agents)):
-            self.move_agent(index, None)
+        self.hill_Climbing()
