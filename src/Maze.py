@@ -157,7 +157,12 @@ class Maze:
             np.random.shuffle(walls)
             for index in range(num_walls):
                 remove_wall = walls[index]
-                self._data[remove_wall[0]][remove_wall[1]] = MazeObject.EMPTY.value
+
+                empty_data = MazeObject.EMPTY.value
+                if self._filled_reward:
+                    empty_data = MazeObject.REWARD.value
+
+                self._data[remove_wall[0]][remove_wall[1]] = empty_data
                 new_energy = self.energy() - 1
                 if new_energy <= current_energy:
                     self._data[remove_wall[0]][remove_wall[1]] = MazeObject.WALL.value
