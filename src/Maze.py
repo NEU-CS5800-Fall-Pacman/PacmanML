@@ -18,6 +18,7 @@ from Agent import Agent
 from Astar import *
 from AstarAgent import *
 import random
+import sys
 
 
 class Maze:
@@ -101,10 +102,10 @@ class Maze:
         """
         Add rewards to the maze. This function is called automatically if filled_reward is False.
         """
-        num_rewards_to_add = 200  # You can adjust this number
+        num_rewards_to_add = 100  # You can adjust this number
         for _ in range(num_rewards_to_add):
             self.add_reward()
-    
+
     def _init_draw(self):
         # Initialize object drawing
         for j in range(0, self._size):
@@ -280,7 +281,7 @@ class Maze:
         """
 
         # Store the current reward positions
-        current_reward_positions = copy.deepcopy(self._reward_positions)
+        self._reward_positions = copy.deepcopy(self._reward_positions)
 
         # Update scoreboard
         self._iteration = self._iteration + 1
@@ -387,6 +388,9 @@ class Maze:
             if closest_reward == agent.get_position():
                 # Remove the closest reward from the list
                 self._reward_positions.remove(closest_reward)
+                if not self._reward_positions:
+                    print(f"Agent wins the game after losing {self._iteration} Times!")
+                    sys.exit()
             
             # Use get_reward_direction to consider both reward and enemy positions
             direction = self.get_reward_direction(closest_reward, agent.get_position(), self.get_agent_pos())
@@ -433,3 +437,4 @@ class Maze:
     def play(self):
         for index in range(len(self._agents)):
             self.move_agent(index, None)
+
