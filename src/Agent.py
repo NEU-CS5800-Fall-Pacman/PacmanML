@@ -7,10 +7,14 @@
 ##################################################
 
 class Agent:
-    def __init__(self, color, is_hostile, position):
+    def __init__(self, color, is_hostile, position, sprite):
         self._color = color
         self._is_hostile = is_hostile
         self._position = position
+        self._sprite = sprite
+
+    def get_sprite(self):
+        return self._sprite
 
     def is_hostile(self):
         return self._is_hostile

@@ -24,7 +24,7 @@ import sys
 class Maze:
     def __init__(self, size, data=None, wall_coverage=None, filled_reward=False):
         self._sprite = {MazeObject.WALL: ("█", "█"), MazeObject.EMPTY: (" ", " "),
-                        MazeObject.REWARD: (".", ""), MazeObject.AGENT: ("A", " ")}
+                        MazeObject.REWARD: (".", " "), MazeObject.AGENT: ("A", " "), "GHOST": ("G", " ")}
         self._static_color = {MazeObject.WALL: Color.BLUE,
                               MazeObject.EMPTY: Color.MAGENTA,
                               MazeObject.REWARD: Color.WHITE}
@@ -43,7 +43,7 @@ class Maze:
         self._agents = []  # List of agents
         self._red_zone = []  # Coordinates of hostile agents
         self._green_zone = []  # Coordinates of non-hostile agents
-        self._reward_positions = []
+        self._reward_positions = []  # Store position of rewards
         self._current_target_reward = None  # Current target reward
 
         # Score box
@@ -86,6 +86,7 @@ class Maze:
 
             # Store reward positions in the _reward_positions list
             self._reward_positions = np.argwhere(self._data == MazeObject.REWARD.value).tolist()
+            self._reward_positions = [tuple(sub) for sub in self._reward_positions] # Convert to tuples
 
             # If filled_reward is False, add rewards automatically
             if not self._filled_reward:
@@ -93,10 +94,10 @@ class Maze:
 
         self._agents = []
         self.add_agent(Color.YELLOW, False)
-        self.add_agent(Color.RED, True)
-        self.add_agent(Color.GREEN, True)
-        # self.add_agent(Color.CYAN, True)
-        # self.add_agent(Color.MAGENTA, True)
+        self.add_agent(Color.RED, True, self._sprite["GHOST"])
+        # self.add_agent(Color.GREEN, True, self._sprite["GHOST"])
+        # self.add_agent(Color.CYAN, True, self._sprite["GHOST"])
+        # self.add_agent(Color.MAGENTA, True, self._sprite["GHOST"])
 
     def _add_rewards(self):
         """
@@ -117,8 +118,8 @@ class Maze:
                 self._box.addstr(j + 1, 2 * i + 2, char[1], self._static_color[obj])
 
         for agent in self._initial_agents:
-            self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, self._sprite[MazeObject.AGENT][0], agent.get_color())
-            self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, self._sprite[MazeObject.AGENT][1], agent.get_color())
+            self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, agent.get_sprite()[0], agent.get_color())
+            self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, agent.get_sprite()[1], agent.get_color())
 
     def bfs(self, agent):
         start = agent.get_position()
@@ -211,16 +212,23 @@ class Maze:
 
         return tuple([y, x])
 
-    def add_agent(self, color, is_hostile):
+    def add_agent(self, color, is_hostile, sprite=None):
         """
         Add new agent into the maze, given color of the agent, and if agent is hostile
 
         :param color: color of the agent, use Color class
         :param is_hostile: whether the agent consumes reward and catch non-hostile agents
+        :param sprite: custom sprite for this agent
         :return: index of newly added agent
         """
 
+        agent_sprite = sprite
         agent = None
+
+        # Init sprite
+        if agent_sprite is None:
+            agent_sprite = self._sprite[MazeObject.AGENT]
+
         while True:
             x = np.random.randint(0, self._size - 1)
             y = np.random.randint(0, self._size - 1)
@@ -228,7 +236,7 @@ class Maze:
             if self._data[y][x] == MazeObject.WALL.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
                 continue
             else:
-                agent = Agent(color, is_hostile, (y, x))
+                agent = Agent(color, is_hostile, (y, x), agent_sprite)
                 break
 
         self._agents.append(agent)
@@ -428,7 +436,7 @@ class Maze:
 
             self._red_zone[index] = agent.get_position()
 
-        char = self._sprite[MazeObject.AGENT]
+        char = agent.get_sprite()
         self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 1, char[0], agent.get_color())
         self._box.addstr(agent.get_y() + 1, 2 * agent.get_x() + 2, char[1], agent.get_color())
 
