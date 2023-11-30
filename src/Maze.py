@@ -109,7 +109,8 @@ class Maze:
         """
         num_rewards_to_add = 100  # You can adjust this number
         for _ in range(num_rewards_to_add):
-            self.add_reward()
+            while self.add_reward() == -1:
+                self.add_reward()
 
     def _init_draw(self):
         # Initialize object drawing
@@ -207,7 +208,7 @@ class Maze:
                 x = rand_x
                 y = rand_y
                 break
-        elif self._data[y][x] == MazeObject.WALL.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
+        elif self._data[y][x] == MazeObject.WALL.value or self._data[y][x] == MazeObject.VALUE.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
             return -1  # Not a valid spawn point
 
         # Store position in the list
