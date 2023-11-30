@@ -208,7 +208,10 @@ class Maze:
                 x = rand_x
                 y = rand_y
                 break
-        elif self._data[y][x] == MazeObject.WALL.value or self._data[y][x] == MazeObject.VALUE.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
+        elif self._data[y][x] == MazeObject.WALL.value or self._data[y][x] == MazeObject.REWARD.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
+            return -1  # Not a valid spawn point
+
+        if self._data[y][x] == MazeObject.WALL.value or self._data[y][x] == MazeObject.REWARD.value or (y, x) in self._red_zone or (y, x) in self._green_zone:
             return -1  # Not a valid spawn point
 
         # Store position in the list
@@ -411,7 +414,8 @@ class Maze:
             if closest_reward == agent.get_position():
                 # Remove the closest reward from the list
                 self._reward_positions.remove(closest_reward)
-                if not self._reward_positions:
+                self._data[closest_reward[0]][closest_reward[1]] = MazeObject.EMPTY.value
+                if len(self._reward_positions) == 0:
                     print(f"Agent wins the game after losing {self._iteration} Times!")
                     sys.exit()
             
