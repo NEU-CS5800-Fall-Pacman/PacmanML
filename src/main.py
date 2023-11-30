@@ -32,7 +32,7 @@ def main(screen):
     curses.use_default_colors()  # Use terminal color
 
     # Maze setup
-    maze = Maze(maze_size, wall_coverage=0.2, filled_reward=True, seed=0)
+    maze = Maze(maze_size, wall_coverage=0.2, filled_reward=False, seed=0)
 
     # Main UI loop
     while True:

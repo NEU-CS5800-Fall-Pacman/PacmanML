@@ -307,7 +307,7 @@ class Maze:
         self._update_score()
 
         # Re-draw initial state
-        self._data = np.copy(self._initial_data)
+        # self._data = np.copy(self._initial_data)
         self._agents = []
         self._agents = copy.deepcopy(self._initial_agents)
         self._init_draw()
@@ -315,6 +315,11 @@ class Maze:
     def get_agent_pos(self):
         for agent in self._agents:
             if not agent.is_hostile():
+                return agent.get_position()
+
+    def get_enemy_pos(self):
+        for agent in self._agents:
+            if agent.is_hostile():
                 return agent.get_position()
 
     
@@ -410,7 +415,7 @@ class Maze:
                     sys.exit()
             
             # Use get_reward_direction to consider both reward and enemy positions
-            direction = self.get_reward_direction(closest_reward, agent.get_position(), self.get_agent_pos())
+            direction = self.get_reward_direction(closest_reward, agent.get_position(), self.get_enemy_pos())
 
         elif direction.value not in valid_moves:
             return -1  # Failure
