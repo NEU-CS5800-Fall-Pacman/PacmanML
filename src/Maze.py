@@ -11,6 +11,9 @@ import numpy as np
 import copy
 from collections import deque
 from time import sleep
+
+import numpy.random
+
 from MazeObject import MazeObject
 from Action import Action
 from Color import *
@@ -19,7 +22,7 @@ from Astar import *
 from Q_learning import *
 
 class Maze:
-    def __init__(self, size, data=None, wall_coverage=None, filled_reward=False):
+    def __init__(self, size, data=None, wall_coverage=None, filled_reward=False, seed=0):
         self._sprite = {MazeObject.WALL: ("█", "█"), MazeObject.EMPTY: (" ", " "),
                         MazeObject.REWARD: ("・", ""), MazeObject.AGENT: ("●", " "), "GHOST": ("G", " ")}
         self._static_color = {MazeObject.WALL: Color.BLUE,
@@ -32,6 +35,7 @@ class Maze:
         self._filled_reward = filled_reward  # If reward should be filled within non-wall space
         self._collected = 0
         self._num_reward = 20
+        self._seed = seed
 
         # Main game box
         self._box = curses.newwin(self._size + 2, (self._size + 1) * 2, 4, 0)
@@ -76,6 +80,7 @@ class Maze:
             if self._filled_reward:
                 non_wall_obj = MazeObject.REWARD.value
 
+            numpy.random.seed(self._seed)
             self._data = np.random.choice([MazeObject.WALL.value, non_wall_obj], size=(self._size, self._size),
                                           p=[self._wall_coverage, 1.0 - self._wall_coverage])
         self._agents = []
