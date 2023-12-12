@@ -15,8 +15,8 @@ from Maze import Maze
 from MazeObject import MazeObject
 
 # Global configuration
-maze_size = 32
-frame_per_second = 30
+maze_size = 15
+frame_per_second = 60
 
 
 def main(screen):
@@ -32,7 +32,7 @@ def main(screen):
     curses.use_default_colors()  # Use terminal color
 
     # Maze setup
-    maze = Maze(maze_size, wall_coverage=0.2, filled_reward=True)
+    maze = Maze(maze_size, wall_coverage=0.1, filled_reward=True, seed=0)
     # Main UI loop
     while True:
         # Move agent
